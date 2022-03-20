@@ -672,6 +672,7 @@ pub fn show_top_panel(
                         let original_polytope = p.clone();
 
                         section_state.open(original_polytope, vec![minmax]);
+						section_direction.clear();
                         section_direction.push(SectionDirection{0:direction});
                     }
                 };
@@ -816,15 +817,20 @@ fn show_views(
             }
             // Cross sections on a lower dimension
 			if ui.button("Section lower dimension").clicked() {
-				let p = query.iter_mut().next().unwrap();
-				let dim = p.dim_or();
-				let mut direction = Vector::zeros(dim);
-				if dim > 0 {
-					direction[dim - 1] = 1.0;
+				if let SectionState::Active {original_polytope, ..} = section_state.as_mut()
+				{
+					if let Some(p) = original_polytope.dim() {
+						
+						let dim = p as usize - section_direction.len();
+						let mut direction = Vector::zeros(dim);
+						if dim > 0 {
+							direction[dim - 1] = 1.0;
+						}
+						section_state.add();
+						section_direction.push(SectionDirection{0:direction});
+					}
 				}
-                section_state.add();
-				section_direction.push(SectionDirection{0:direction});
-            }
+			}
 			// Cross sections on a higher dimension
 			if ui.button("Section higher dimension").clicked() {
                 section_state.remove();
