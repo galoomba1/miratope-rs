@@ -691,6 +691,7 @@ impl Concrete {
         include_compounds: bool,
         save: bool,
         save_facets: bool,
+        skip_facets: Vec<usize>,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -933,7 +934,7 @@ impl Concrete {
             ridges.push(ridges_row);
             ff_counts.push(ff_counts_row);
 
-            println!("{}: {} facets", idx, possible_facets_row.len());
+            println!("{}: {} facets, {} hyperplanes", idx, possible_facets_row.len(), orbit.len());
         }
 
         println!("\nComputing ridges...");
@@ -1037,6 +1038,10 @@ impl Concrete {
                     t.0 += 1;
                     t.1 = 0;
                 }
+				else if skip_facets.contains(&t.0) {
+					t.0 += 1;
+					t.1 = 0;
+				}
                 else {
                     break
                 }

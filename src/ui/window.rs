@@ -1191,6 +1191,9 @@ pub struct FacetingSettings {
 
     /// Whether to save the facets in memory.
     pub save_facets: bool,
+
+    /// The facet indices to skip
+    pub facets_to_skip: Vec<usize>,
 }
 
 impl Default for FacetingSettings {
@@ -1204,6 +1207,7 @@ impl Default for FacetingSettings {
             compounds: false,
             save: true,
             save_facets: false,
+            facets_to_skip: vec![],
         }
     }
 }
@@ -1266,5 +1270,25 @@ impl PlainWindow for FacetingSettings {
                 egui::Checkbox::new(&mut self.save_facets, "Save facets")
             );
         });
+        let mut i = 0;
+		while i < self.facets_to_skip.len() {
+			ui.horizontal(|ui| {
+				ui.label("Facet to skip");
+				ui.add(
+					egui::DragValue::new(&mut self.facets_to_skip[i])
+						.speed(0.02)
+						.clamp_range(0..=usize::MAX)
+				);
+			});
+			i = i+1;
+		}
+		ui.horizontal(|ui| {
+			if ui.add(egui::Button::new("+")).clicked() {
+				self.facets_to_skip.push(0);
+			}
+			if ui.add(egui::Button::new("-").enabled(self.facets_to_skip.len() > 0)).clicked() {
+				self.facets_to_skip.pop();
+			}
+		});
     }
 }

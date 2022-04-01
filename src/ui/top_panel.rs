@@ -696,7 +696,8 @@ pub fn show_top_panel(
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
                             faceting_settings.compounds,
                             faceting_settings.save,
-                            faceting_settings.save_facets
+                            faceting_settings.save_facets,
+                            faceting_settings.facets_to_skip.clone()
                         );
                         for faceting in facetings {
                             memory.push(faceting);
