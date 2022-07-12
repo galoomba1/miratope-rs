@@ -317,7 +317,7 @@ impl<'a> OffReader<'a> {
                 v.push(self.iter.parse_next()?);
             }
 
-            vertices.push(v.into());
+            vertices.push(Point::from_vec(v.clone()));
         }
 
         Ok(vertices)
