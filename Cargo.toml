@@ -20,7 +20,7 @@ miratope-core = { path = "miratope-core" }
 vec-like = { path = "vec-like" }
 approx = "0.5.1"
 directories = "4.0.1"
-lyon = "0.17"
+lyon = "1.0.0"
 ordered-float = "2.4"
 rfd = "0.5"
 ron = "0.6"
