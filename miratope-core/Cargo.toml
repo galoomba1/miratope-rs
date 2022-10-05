@@ -18,5 +18,5 @@ ron = "0.8.0"
 serde = { version = "1.0.145", features = ["derive"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
-xml-rs = "0.8"
+xml-rs = "0.8.4"
 zip = "0.6.2"
