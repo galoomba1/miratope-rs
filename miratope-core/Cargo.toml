@@ -14,7 +14,7 @@ ordered-float = "3.2.0"
 partitions = "0.2.4"
 petgraph = "0.6"
 rayon = "1.5"
-ron = "0.6"
+ron = "0.8.0"
 serde = { version = "1.0.145", features = ["derive"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"

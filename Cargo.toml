@@ -23,7 +23,7 @@ directories = "4.0.1"
 lyon = "1.0.0"
 ordered-float = "3.2.0"
 rfd = "0.10.0"
-ron = "0.6"
+ron = "0.8.0"
 serde = { version = "1.0.145", features = ["derive"] }
 webbrowser = "0.5"
 

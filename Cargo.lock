@@ -506,7 +506,7 @@ dependencies = [
  "bevy_reflect",
  "bevy_transform",
  "bevy_utils",
- "ron",
+ "ron 0.6.5",
  "serde",
  "thiserror",
  "uuid",
@@ -2188,7 +2188,7 @@ dependencies = [
  "miratope-core",
  "ordered-float 3.2.0",
  "rfd",
- "ron",
+ "ron 0.8.0",
  "serde",
  "vec-like",
  "webbrowser",
@@ -2207,7 +2207,7 @@ dependencies = [
  "partitions",
  "petgraph 0.6.0",
  "rayon",
- "ron",
+ "ron 0.8.0",
  "serde",
  "strum",
  "strum_macros",
@@ -2855,6 +2855,17 @@ name = "ron"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45005aa836116903a49cf3461474da697cfe66221762c6e95871092009ec86d6"
+dependencies = [
+ "base64",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
+name = "ron"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "300a51053b1cb55c80b7a9fde4120726ddf25ca241a1cbb926626f62fb136bff"
 dependencies = [
  "base64",
  "bitflags",
