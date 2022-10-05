@@ -1506,9 +1506,12 @@ dependencies = [
 
 [[package]]
 name = "gcd"
-version = "2.0.1"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c7cd301bf2ab11ae4e5bdfd79c221d97a25e46c089144a62ee9d09cb32d2b92"
+checksum = "f37978dab2ca789938a83b2f8bc1ef32db6633af9051a6cd409eff72cbaaa79a"
+dependencies = [
+ "paste",
+]
 
 [[package]]
 name = "gdk-pixbuf-sys"

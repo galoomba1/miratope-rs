@@ -7,7 +7,7 @@ edition = "2018"
 vec-like = { path = "../vec-like" }
 approx = "0.5.1"
 dyn-clone = "1.0.9"
-gcd = "2.0"
+gcd = "2.1.0"
 itertools = "0.10"
 nalgebra = { version = "0.31.1", features = ["serde-serialize"] }
 ordered-float = "3.2.0"
