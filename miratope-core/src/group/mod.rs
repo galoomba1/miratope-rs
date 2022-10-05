@@ -732,7 +732,7 @@ mod tests {
                 let n_usize = n as usize;
 
                 test(
-                    unsafe { Group::step_hom(Group::cyclic(n), move |mat| mat.pow(d).unwrap()) }, //change
+                    unsafe { Group::step_hom(Group::cyclic(n), move |mat| mat.pow(d)) }, //change
                     n_usize,
                     n_usize,
                     "Step prismatic n-d",
