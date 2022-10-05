@@ -3,8 +3,6 @@
     nonstandard_style,
     unused_parens,
     unused_qualifications,
-    rust_2018_idioms,
-    rust_2018_compatibility,
     future_incompatible,
     missing_copy_implementations
 )]
@@ -13,10 +11,9 @@
 
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::render::{camera::PerspectiveProjection, pipeline::PipelineDescriptor};
+use bevy::render::camera::PerspectiveProjection;
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
-use no_cull_pipeline::PbrNoBackfaceBundle;
 
 use ui::{
     camera::{CameraInputEvent, ProjectionType},
@@ -26,7 +23,6 @@ use ui::{
 use crate::mesh::Renderable;
 
 mod mesh;
-mod no_cull_pipeline;
 mod ui;
 
 /// The link to the [Polytope Wiki](https://polytope.miraheze.org/wiki/).
@@ -71,26 +67,18 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugins(MiratopePlugins)
-        .add_startup_system(setup.system())
+        .add_startup_system(setup)
         .run();
 }
 
 /// Initializes the scene.
 fn setup(
-    mut commands: Commands<'_, '_>,
-    mut meshes: ResMut<'_, Assets<Mesh>>,
-    mut materials: ResMut<'_, Assets<StandardMaterial>>,
-    mut shaders: ResMut<'_, Assets<Shader>>,
-    mut pipelines: ResMut<'_, Assets<PipelineDescriptor>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Default polytope.
     let poly = Concrete::from_off(include_str!("default.off")).unwrap();
-
-    // Disables backface culling.
-    pipelines.set_untracked(
-        no_cull_pipeline::NO_CULL_PIPELINE_HANDLE,
-        no_cull_pipeline::build_no_cull_pipeline(&mut shaders),
-    );
 
     // Selected object (unused as of yet).
     materials.set_untracked(
@@ -105,6 +93,8 @@ fn setup(
     let mesh_material = materials.add(StandardMaterial {
         base_color: Color::rgb_u8(255, 255, 255),
         metallic: 0.2,
+        double_sided: true,
+        cull_mode: None,
         ..Default::default()
     });
 
@@ -116,14 +106,14 @@ fn setup(
     commands
         .spawn()
         // Mesh
-        .insert_bundle(PbrNoBackfaceBundle {
+        .insert_bundle(PbrBundle {
             mesh: meshes.add(poly.mesh(ProjectionType::Perspective)),
             material: mesh_material,
             ..Default::default()
         })
         // Wireframe
         .with_children(|cb| {
-            cb.spawn().insert_bundle(PbrNoBackfaceBundle {
+            cb.spawn().insert_bundle(PbrBundle {
                 mesh: meshes.add(poly.wireframe(ProjectionType::Perspective)),
                 material: wf_material,
                 ..Default::default()
@@ -138,13 +128,13 @@ fn setup(
         .insert_bundle((GlobalTransform::default(), cam_anchor))
         .with_children(|cb| {
             // Camera
-            cb.spawn_bundle(PerspectiveCameraBundle {
+            cb.spawn_bundle(Camera3dBundle {
                 transform: cam,
-                perspective_projection: PerspectiveProjection {
+                projection: PerspectiveProjection {
                     near: 0.01,
                     far: 500.,
                     ..Default::default()
-                },
+                }.into(),
                 ..Default::default()
             });
             // Light source

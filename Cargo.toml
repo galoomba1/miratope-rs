@@ -13,7 +13,8 @@ authors = [
     "Grayson Burton <ocornoc@protonmail.com>",
     "Roman Salinas <ultraroman01@gmail.com>"
 ]
-edition = "2018"
+edition = "2021"
+resolver = "2"
 
 [dependencies]
 miratope-core = { path = "miratope-core" }
@@ -26,34 +27,20 @@ rfd = "0.10.0"
 ron = "0.8.0"
 serde = { version = "1.0.145", features = ["derive"] }
 webbrowser = "0.8.0"
+bevy_egui = "0.16.1"
 
-# Use latest version of Bevy (might cause breakage!)
 [dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
-branch = "main"
+version = "0.8.1"
 default-features = false
 features = [
-    "bevy_gltf",
+    "bevy_asset",
+    "bevy_gilrs",
     "bevy_winit",
-    "bevy_wgpu",
     "render",
-    "bevy_dynamic_plugin",
+    "png",
     "hdr",
-    "x11"
+    "x11",
 ]
-
-# Bevy egui integration with this latest version.
-[dependencies.bevy_egui]
-git = "https://github.com/vihdzp/bevy_egui/"
-branch = "bevy-main"
-
-[dependencies.egui]
-version = "0.14.2"
-default-features = false
-features = ["multi_threaded"]
-
-[patch.crates-io]
-winit = { git = "https://github.com/vihdzp/winit" }
 
 [profile.release]
 lto = "thin"

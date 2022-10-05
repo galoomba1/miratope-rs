@@ -39,8 +39,8 @@ impl Plugin for ConfigPlugin {
             .insert_resource(LibPath::default())
             .insert_resource(config.background_color.clear_color())
             .insert_resource(config.light_mode.visuals())
-            .add_system(update_visuals.system())
-            .add_system_to_stage(CoreStage::Last, save_config.system());
+            .add_system(update_visuals)
+            .add_system_to_stage(CoreStage::Last, save_config);
     }
 }
 
@@ -108,9 +108,9 @@ impl LightMode {
 
 /// Updates the application appearance whenever the visuals are changed. This
 /// occurs at application startup and whenever the user toggles light/dark mode.
-fn update_visuals(egui_ctx: Res<'_, EguiContext>, visuals: Res<'_, egui::Visuals>) {
+fn update_visuals(mut egui_ctx: ResMut<EguiContext>, visuals: Res<egui::Visuals>) {
     if visuals.is_changed() {
-        egui_ctx.ctx().set_visuals(visuals.clone());
+        egui_ctx.ctx_mut().set_visuals(visuals.clone());
     }
 }
 
@@ -190,11 +190,11 @@ impl Config {
 
 /// Saves the configuration at application exit.
 fn save_config(
-    mut exit: EventReader<'_, '_, AppExit>,
-    config_path: Res<'_, ConfigPath>,
+    mut exit: EventReader<AppExit>,
+    config_path: Res<ConfigPath>,
 
-    background_color: Res<'_, ClearColor>,
-    visuals: Res<'_, egui::Visuals>,
+    background_color: Res<ClearColor>,
+    visuals: Res<egui::Visuals>,
 ) {
     // If the application is being exited:
     if exit.iter().next().is_some() {

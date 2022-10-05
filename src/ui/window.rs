@@ -17,18 +17,19 @@ use miratope_core::{conc::{ConcretePolytope, element_types::EL_NAMES}, Polytope,
 
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, Button, CtxRef, Layout, Ui, Widget},
+    egui::{self, Button, Context, Layout, Align, Ui, Widget},
     EguiContext,
 };
 
 // https://users.rust-lang.org/t/nice-floating-point-number-formatting/13213/6
 fn n_decimals(value: f64, digits: usize) -> String {
-    format!("{:.*}",
-        if value.abs() < 5e-11 {0}
-        else if value.abs() >= 1. {digits}
-        else {min(10, digits + -value.abs().log10().floor() as usize - 1)},
-        value
-    )
+    format!("{value:.*}", if value.abs() < 5e-11 {
+        0
+    } else if value.abs() >= 1.0 {
+        digits
+    } else {
+        min(10, digits + -value.abs().log10().floor() as usize - 1)
+    })
 }
 
 /// The text on the loaded polytope slot.
@@ -91,7 +92,7 @@ impl<'a> Widget for OkReset<'a> {
         // We have to manually set the height of our control, for whatever reason.
         let size = egui::Vec2::new(ui.min_size().x, 30.0);
 
-        ui.allocate_ui_with_layout(size, Layout::right_to_left(), |ui| {
+        ui.allocate_ui_with_layout(size, Layout::right_to_left(Align::Min), |ui| {
             if ui.button("Ok").clicked() {
                 *self.result = ShowResult::Ok;
             } else if ui.button("Reset").clicked() {
@@ -137,7 +138,7 @@ pub trait Window: Send + Sync + Default {
 macro_rules! impl_show {
     () => {
         /// Shows the window on screen.
-        fn show(&mut self, ctx: &CtxRef) -> ShowResult {
+        fn show(&mut self, ctx: &Context) -> ShowResult {
             let mut open = self.is_open();
             let mut result = ShowResult::None;
 
@@ -159,14 +160,14 @@ macro_rules! impl_show {
 
         /// The system that shows the window.
         fn show_system(
-            mut self_: ResMut<'_, Self>,
-            egui_ctx: Res<'_, EguiContext>,
-            mut query: Query<'_, '_, &mut Concrete>,
-            mut poly_name: ResMut<'_, PolyName>,
+            mut self_: ResMut<Self>,
+            mut egui_ctx: ResMut<EguiContext>,
+            mut query: Query<&mut Concrete>,
+            mut poly_name: ResMut<PolyName>,
         ) where
             Self: 'static,
         {
-            match self_.show(egui_ctx.ctx()) {
+            match self_.show(egui_ctx.ctx_mut()) {
                 ShowResult::Ok => {
                     for mut polytope in query.iter_mut() {
                         self_.action(polytope.as_mut());
@@ -215,7 +216,7 @@ pub struct PlainWindowPlugin<T: PlainWindow>(PhantomData<T>);
 impl<T: PlainWindow + 'static> Plugin for PlainWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_system(T::show_system.label("show_windows"));
     }
 }
 
@@ -252,8 +253,8 @@ pub trait UpdateWindow: Window {
     /// The system that updates the window when the rank of the polytope is
     /// updated.
     fn update_system(
-        mut self_: ResMut<'_, Self>,
-        query: Query<'_, '_, (&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+        mut self_: ResMut<Self>,
+        query: Query<(&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
     ) where
         Self: 'static,
     {
@@ -275,8 +276,8 @@ pub struct UpdateWindowPlugin<T: UpdateWindow>(PhantomData<T>);
 impl<T: UpdateWindow + 'static> Plugin for UpdateWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.insert_resource(T::default())
-            .add_system(T::show_system.system().label("show_windows"))
-            .add_system(T::update_system.system().label("show_windows"));
+            .add_system(T::show_system.label("show_windows"))
+            .add_system(T::update_system.label("show_windows"));
     }
 }
 
@@ -325,7 +326,7 @@ pub trait MemoryWindow: Window {
     }
 
     /// Shows the window on screen.
-    fn show(&mut self, ctx: &CtxRef, memory: &Memory) -> ShowResult {
+    fn show(&mut self, ctx: &Context, memory: &Memory) -> ShowResult {
         let mut open = self.is_open();
         let mut result = ShowResult::None;
 
@@ -347,14 +348,14 @@ pub trait MemoryWindow: Window {
 
     /// The system that shows the window.
     fn show_system(
-        mut self_: ResMut<'_, Self>,
-        egui_ctx: Res<'_, EguiContext>,
-        mut query: Query<'_, '_, &mut Concrete>,
-        memory: Res<'_, Memory>,
+        mut self_: ResMut<Self>,
+        mut egui_ctx: ResMut<EguiContext>,
+        mut query: Query<&mut Concrete>,
+        memory: Res<Memory>,
     ) where
         Self: 'static,
     {
-        match self_.show(egui_ctx.ctx(), &memory) {
+        match self_.show(egui_ctx.ctx_mut(), &memory) {
             ShowResult::Ok => {
                 for mut polytope in query.iter_mut() {
                     self_.action(polytope.as_mut());
@@ -380,7 +381,7 @@ pub struct MemoryWindowPlugin<T: MemoryWindow>(PhantomData<T>);
 impl<T: MemoryWindow + 'static> Plugin for MemoryWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_system(T::show_system.label("show_windows"));
     }
 }
 
@@ -495,7 +496,7 @@ pub trait DuoWindow: Window {
     }
 
     /// Shows the window on screen.
-    fn show(&mut self, ctx: &CtxRef, polytope: &Concrete, memory: &Memory) -> ShowResult {
+    fn show(&mut self, ctx: &Context, polytope: &Concrete, memory: &Memory) -> ShowResult {
         let mut open = self.is_open();
         let mut result = ShowResult::None;
 
@@ -518,16 +519,16 @@ pub trait DuoWindow: Window {
 
     /// The system that shows the window.
     fn show_system(
-        mut self_: ResMut<'_, Self>,
-        egui_ctx: Res<'_, EguiContext>,
-        mut query: Query<'_, '_, &mut Concrete>,
-        memory: Res<'_, Memory>,
-        mut poly_name: ResMut<'_, PolyName>,
+        mut self_: ResMut<Self>,
+        mut egui_ctx: ResMut<EguiContext>,
+        mut query: Query<&mut Concrete>,
+        memory: Res<Memory>,
+        mut poly_name: ResMut<PolyName>,
     ) where
         Self: 'static,
     {
         for mut polytope in query.iter_mut() {
-            match self_.show(egui_ctx.ctx(), &polytope, &memory) {
+            match self_.show(egui_ctx.ctx_mut(), &polytope, &memory) {
                 ShowResult::Ok => {
                     self_.action(polytope.as_mut(), &memory);
                     self_.name_action(&mut poly_name.0, &memory);
@@ -553,7 +554,7 @@ pub struct DuoWindowPlugin<T: DuoWindow>(PhantomData<T>);
 impl<T: DuoWindow + 'static> Plugin for DuoWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_system(T::show_system.label("show_windows"));
     }
 }
 
@@ -887,7 +888,7 @@ impl UpdateWindow for AntiprismWindow {
         let radius = self.dual.radius;
         let mut squared_radius = radius * radius;
         if self.retroprism {
-            squared_radius *= -1.0;
+            squared_radius *= - 1.0;
         }
 
         let sphere = Hypersphere::with_squared_radius(self.dual.center.clone(), squared_radius);
@@ -1031,10 +1032,10 @@ impl DuoWindow for DuopyramidWindow {
             ui.label("Height");
         });
 
-        if ui.add(
-            egui::Button::new("Try to make orbiform")
-                .enabled(!matches!(self.slots[0], Slot::None) && !matches!(self.slots[1], Slot::None))
-            ).clicked() {
+        if ui.add_enabled(
+            !matches!(self.slots[0], Slot::None) && !matches!(self.slots[1], Slot::None),
+            egui::Button::new("Try to make orbiform"),
+        ).clicked() {
                 if let Some(circum0) = match self.slots[0] {
                     Slot::Loaded => polytope,
                     Slot::Memory(i) => &memory[i].as_ref().unwrap().0,
@@ -1825,8 +1826,9 @@ impl MemoryWindow for FacetingSettings {
         ui.horizontal(|ui| {
             ui.radio_value(&mut self.save_to_file, true, "Save to file");
             ui.label("Path:");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.file_path).enabled(self.save_to_file)
+            ui.add_enabled(
+                self.save_to_file,
+                egui::TextEdit::singleline(&mut self.file_path),
             );
         });
 
@@ -1873,26 +1875,26 @@ impl UpdateWindow for RotateWindow {
 			polytope.element_sort();
 			
 			if self.degcheck { //Degrees
-				for ind in 0..self.rank-1 {
+				for ind in 0..self.rank- 1 {
 					for v in polytope.vertices_mut() {
 						let theta = self.rots[ind]*0.017453292519943295;
 						
-						let x = v[ind]*theta.cos() - v[ind+1]*theta.sin();
-						let y = v[ind]*theta.sin() + v[ind+1]*theta.cos();
+						let x = v[ind]*theta.cos() - v[ind+ 1]*theta.sin();
+						let y = v[ind]*theta.sin() + v[ind+ 1]*theta.cos();
 						v[ind] = x;
-						v[(ind+1)%self.rank] = y;
+						v[(ind+ 1)%self.rank] = y;
 					}
 				}
 			}
 			else { //Radians
-				for ind in 0..self.rank-1 {
+				for ind in 0..self.rank- 1 {
 					for v in polytope.vertices_mut() {
 						let theta = self.rots[ind];
 						
-						let x = v[ind]*theta.cos() - v[ind+1]*theta.sin();
-						let y = v[ind]*theta.sin() + v[ind+1]*theta.cos();
+						let x = v[ind]*theta.cos() - v[ind+ 1]*theta.sin();
+						let y = v[ind]*theta.sin() + v[ind+ 1]*theta.cos();
 						v[ind] = x;
-						v[(ind+1)%self.rank] = y;
+						v[(ind+ 1)%self.rank] = y;
 					}
 				}	
 			}
@@ -1911,7 +1913,7 @@ impl UpdateWindow for RotateWindow {
 
     fn build(&mut self, ui: &mut Ui) {
         ui.add(egui::Checkbox::new(&mut self.degcheck, "Use degrees instead of radians"));
-		for r in 0..self.rank-1 {
+		for r in 0..self.rank- 1 {
             ui.horizontal(|ui| {
 				if self.degcheck {
 					ui.add(egui::DragValue::new(&mut self.rots[r]).speed(1.0).clamp_range(0.0..=360.0));
@@ -2231,7 +2233,7 @@ impl WikiWindow {
     fn build(
         &mut self,
         ui: &mut Ui,
-        keyboard: Res<'_, Input<KeyCode>>,
+        keyboard: Res<Input<KeyCode>>,
     ) {
         ui.horizontal(|ui| {
             ui.label("Title:");
@@ -2255,11 +2257,11 @@ impl WikiWindow {
                     if ui.button("-").clicked() {
                         infobox.before_elements.remove(idx);
                     }
-                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
-                        infobox.before_elements.swap(idx-1, idx);
+                    if ui.add_enabled(idx > 0, Button::new("^")).clicked() {
+                        infobox.before_elements.swap(idx- 1, idx);
                     }
-                    if ui.add(Button::new("v").enabled(idx+1 < infobox.before_elements.len())).clicked() {
-                        infobox.before_elements.swap(idx, idx+1);
+                    if ui.add_enabled(idx + 1 < infobox.before_elements.len(), Button::new("v")).clicked() {
+                        infobox.before_elements.swap(idx, idx+ 1);
                     }
                 }
                 if idx < infobox.before_elements.len() {
@@ -2330,11 +2332,11 @@ impl WikiWindow {
                     if ui.button("-").clicked() {
                         infobox.after_elements.remove(idx);
                     }
-                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
-                        infobox.after_elements.swap(idx-1, idx);
+                    if ui.add_enabled(idx > 0, Button::new("^")).clicked() {
+                        infobox.after_elements.swap(idx- 1, idx);
                     }
-                    if ui.add(Button::new("v").enabled(idx+1 < infobox.after_elements.len())).clicked() {
-                        infobox.after_elements.swap(idx, idx+1);
+                    if ui.add_enabled(idx + 1 < infobox.after_elements.len(), Button::new("v")).clicked() {
+                        infobox.after_elements.swap(idx, idx+ 1);
                     }
                 }
                 if idx < infobox.after_elements.len() {
@@ -2368,11 +2370,11 @@ impl WikiWindow {
                     if ui.button("-").clicked() {
                         categories.remove(idx);
                     }
-                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
-                        categories.swap(idx-1, idx);
+                    if ui.add_enabled(idx > 0, Button::new("^")).clicked() {
+                        categories.swap(idx- 1, idx);
                     }
-                    if ui.add(Button::new("v").enabled(idx+1 < categories.len())).clicked() {
-                        categories.swap(idx, idx+1);
+                    if ui.add_enabled(idx + 1 < categories.len(), Button::new("v")).clicked() {
+                        categories.swap(idx, idx+ 1);
                     }
                 }
                 ui.add(TextEdit::singleline(&mut categories[idx]).desired_width(300.));
@@ -2386,14 +2388,14 @@ impl WikiWindow {
     }
 
     /// Resets the window, generates much of it from the element types.
-    fn reset(&mut self, element_types: &Res<'_, ElementTypesRes>) {
+    fn reset(&mut self, element_types: &Res<ElementTypesRes>) {
         *self = Self {
             open: true,
             article: WikiArticle {
                 title: element_types.poly_name.clone(),
                 infobox: Infobox {
                     before_elements: vec![
-                        InfoboxField::new("rank", &(element_types.poly.rank()-1).to_string()),
+                        InfoboxField::new("rank", &(element_types.poly.rank()- 1).to_string()),
                         InfoboxField::new("type", ""),
                         InfoboxField::new("bsa", ""),
                     ],
@@ -2435,8 +2437,8 @@ impl WikiWindow {
     /// Shows the window on screen.
     fn show(
         &mut self,
-        ctx: &CtxRef,
-        keyboard: Res<'_, Input<KeyCode>>
+        ctx: &Context,
+        keyboard: Res<Input<KeyCode>>
     ) -> ShowResult
     {
         let mut open = self.is_open();
@@ -2460,14 +2462,14 @@ impl WikiWindow {
 
     /// The system that shows the window.
     fn show_system(
-        mut self_: ResMut<'_, Self>,
-        egui_ctx: Res<'_, EguiContext>,
-        element_types: Res<'_, ElementTypesRes>,
-        keyboard: Res<'_, Input<KeyCode>>
+        mut self_: ResMut<Self>,
+        mut egui_ctx: ResMut<EguiContext>,
+        element_types: Res<ElementTypesRes>,
+        keyboard: Res<Input<KeyCode>>
     ) where
         Self: 'static,
     {
-        match self_.show(egui_ctx.ctx(), keyboard) {
+        match self_.show(egui_ctx.ctx_mut(), keyboard) {
             ShowResult::Ok => {
                 self_.action();
                 self_.close()
@@ -2491,6 +2493,6 @@ pub struct WikiWindowPlugin(PhantomData<WikiWindow>);
 impl Plugin for WikiWindowPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WikiWindow>()
-            .add_system(WikiWindow::show_system.system().label("show_windows"));
+            .add_system(WikiWindow::show_system.label("show_windows"));
     }
 }

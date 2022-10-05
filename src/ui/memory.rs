@@ -1,7 +1,7 @@
 //! Manages the memory tab.
 
-use bevy::prelude::{Query, Res, ResMut};
-use bevy_egui::{egui, EguiContext};
+use bevy::prelude::Query;
+use bevy_egui::egui;
 
 use crate::Concrete;
 
@@ -21,7 +21,7 @@ impl std::ops::Index<usize> for Memory {
 
 /// The label for the `n`-th memory slot.
 pub fn slot_label(n: usize) -> String {
-    format!("polytope {}", n)
+    format!("polytope {n}")
 }
 
 impl Memory {
@@ -41,13 +41,19 @@ impl Memory {
     }
 
     /// Shows the memory menu in a specified Ui.
-    pub fn show(&mut self, query: &mut Query<'_, '_, &mut Concrete>, poly_name: &mut ResMut<'_, PolyName>, egui_ctx: &Res<'_, EguiContext>, open: &mut bool) {
+    pub fn show(
+        &mut self,
+        query: &mut Query<&mut Concrete>,
+        poly_name: &mut PolyName,
+        egui_ctx: &egui::Context,
+        open: &mut bool,
+    ) {
         egui::Window::new("Memory")
             .open(open)
-            .scroll(true)
+            .vscroll(true)
             .default_width(260.0)
-            .show(egui_ctx.ctx(), |ui| {
-            egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(egui_ctx, |ui| {
+            egui::containers::ScrollArea::vertical().show(ui, |ui| {
                 
                 ui.horizontal(|ui| {
                     if ui.button("Clear memory").clicked() {

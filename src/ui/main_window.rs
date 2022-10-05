@@ -16,9 +16,9 @@ pub struct MainWindowPlugin;
 
 impl Plugin for MainWindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::PreUpdate, update_visible.system())
-            .add_system(update_scale_factor.system())
-            .add_system_to_stage(CoreStage::PostUpdate, update_changed_polytopes.system())
+        app.add_system_to_stage(CoreStage::PreUpdate, update_visible)
+            .add_system(update_scale_factor)
+            .add_system_to_stage(CoreStage::PostUpdate, update_changed_polytopes)
             .init_resource::<PolyName>();
     }
 }
@@ -32,9 +32,9 @@ impl Default for PolyName {
 }
 
 pub fn update_visible(
-    keyboard: Res<'_, Input<KeyCode>>,
-    mut polies_vis: Query<'_, '_, &mut Visible, With<Concrete>>,
-    mut wfs_vis: Query<'_, '_, &mut Visible, Without<Concrete>>,
+    keyboard: Res<Input<KeyCode>>,
+    mut polies_vis: Query<&mut Visibility, With<Concrete>>,
+    mut wfs_vis: Query<&mut Visibility, Without<Concrete>>,
 ) {
     if keyboard.just_pressed(KeyCode::V) {
         if let Some(mut visible) = polies_vis.iter_mut().next() {
@@ -52,7 +52,7 @@ pub fn update_visible(
 }
 
 /// Resizes the UI when the screen is resized.
-pub fn update_scale_factor(mut egui_settings: ResMut<'_, EguiSettings>, windows: Res<'_, Windows>) {
+pub fn update_scale_factor(mut egui_settings: ResMut<EguiSettings>, windows: Res<Windows>) {
     if let Some(window) = windows.get_primary() {
         egui_settings.scale_factor = 1.0 / window.scale_factor();
     }
@@ -60,15 +60,14 @@ pub fn update_scale_factor(mut egui_settings: ResMut<'_, EguiSettings>, windows:
 
 /// Updates polytopes after an operation.
 pub fn update_changed_polytopes(
-    mut meshes: ResMut<'_, Assets<Mesh>>,
-    mut polies: Query<'_, '_, (&mut Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
-    wfs: Query<'_, '_, &Handle<Mesh>, Without<Concrete>>,
-    mut windows: ResMut<'_, Windows>,
-    mut section_state: ResMut<'_, SectionState>,
-    mut element_types: ResMut<'_, ElementTypesRes>,
-    name: Res<'_, PolyName>,
-
-    orthogonal: Res<'_, ProjectionType>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut polies: Query<(&mut Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+    wfs: Query<&Handle<Mesh>, Without<Concrete>>,
+    mut windows: ResMut<Windows>,
+    mut section_state: ResMut<SectionState>,
+    mut element_types: ResMut<ElementTypesRes>,
+    name: Res<PolyName>,
+    orthogonal: Res<ProjectionType>,
 ) {
     for (mut poly, mesh_handle, children) in polies.iter_mut() {
         poly.untangle_faces();
