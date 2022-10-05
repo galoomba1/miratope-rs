@@ -31,8 +31,6 @@ use nalgebra::{
     allocator::Allocator, dmatrix, Const, DefaultAllocator, Quaternion, Rotation, UnitQuaternion,
 };
 
-use unchecked_unwrap::UncheckedUnwrap;
-
 /// The type of the dimension associated to an iterator.
 type Dim<I> = <<I as Iterator>::Item as GroupItem>::Dim;
 
@@ -156,19 +154,19 @@ impl Group<GenIter<Matrix<f64>>> {
     /// Returns the A(n) group.
     pub fn simplex(n: usize) -> Self {
         // Safety: this is always a valid Coxeter group.
-        unsafe { Cox::a(n).group().unchecked_unwrap() }
+        unsafe { Cox::a(n).group().unwrap_unchecked() }
     }
 
     /// Returns the B(n) group.
     pub fn hypercube(n: usize) -> Self {
         // Safety: this is always a valid Coxeter group.
-        unsafe { Cox::b(n).group().unchecked_unwrap() }
+        unsafe { Cox::b(n).group().unwrap_unchecked() }
     }
 
     /// Returns the D(n) group.
     pub fn demihypercube(n: usize) -> Self {
         // Safety: this is always a valid Coxeter group.
-        unsafe { Cox::d(n).group().unchecked_unwrap() }
+        unsafe { Cox::d(n).group().unwrap_unchecked() }
     }
 
     /// Returns the E(n) group.
@@ -179,7 +177,7 @@ impl Group<GenIter<Matrix<f64>>> {
     pub fn gosset(n: usize) -> Self {
         assert!((4..=8).contains(&n));
         // Safety: this is always a valid Coxeter group.
-        unsafe { Cox::e(n).group().unchecked_unwrap() }
+        unsafe { Cox::e(n).group().unwrap_unchecked() }
     }
 
     /// Returns the H(n) group.
@@ -190,7 +188,7 @@ impl Group<GenIter<Matrix<f64>>> {
     pub fn pentagonal(n: usize) -> Self {
         assert!((2..=4).contains(&n));
         // Safety: this is always a valid Coxeter group.
-        unsafe { Cox::h(n).group().unchecked_unwrap() }
+        unsafe { Cox::h(n).group().unwrap_unchecked() }
     }
 }
 

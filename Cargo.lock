@@ -2214,7 +2214,6 @@ dependencies = [
  "serde",
  "strum 0.24.1",
  "strum_macros 0.24.3",
- "unchecked_unwrap",
  "vec-like",
  "xml-rs",
  "zip",
@@ -3293,12 +3292,6 @@ name = "typenum"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b63708a265f51345575b27fe43f9500ad611579e764c79edbc2037b1121959ec"
-
-[[package]]
-name = "unchecked_unwrap"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c24f3a206e040c2d1f2bc5987864f777cb807ad4f50bed46dbfa2af917be2d8"
 
 [[package]]
 name = "unicode-ident"
