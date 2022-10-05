@@ -15,7 +15,7 @@ partitions = "0.2.4"
 petgraph = "0.6"
 rayon = "1.5"
 ron = "0.6"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 strum = "0.21"
 strum_macros = "0.21"
 unchecked_unwrap = "3"
