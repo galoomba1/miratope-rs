@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 vec-like = { path = "../vec-like" }
-approx = "0.5"
+approx = "0.5.1"
 dyn-clone = "1.0"
 gcd = "2.0"
 itertools = "0.10"

@@ -18,7 +18,7 @@ edition = "2018"
 [dependencies]
 miratope-core = { path = "miratope-core" }
 vec-like = { path = "vec-like" }
-approx = "0.5"
+approx = "0.5.1"
 directories = "4.0"
 lyon = "0.17"
 ordered-float = "2.4"
