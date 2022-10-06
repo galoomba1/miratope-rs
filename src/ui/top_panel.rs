@@ -22,11 +22,10 @@ impl Plugin for TopPanelPlugin {
             .init_resource::<ShowHelp>()
             .init_resource::<ExportMemory>()
             .init_non_send_resource::<FileDialogToken>()
-            .add_system(file_dialog.system())
+            .add_system(file_dialog)
             // Windows must be the first thing shown.
             .add_system(
                 show_top_panel
-                    .system()
                     .label("show_top_panel")
                     .after("show_windows"),
             );
@@ -249,10 +248,10 @@ impl FileDialogState {
 
 /// The system in charge of showing the file dialog.
 pub fn file_dialog(
-    mut query: Query<'_, '_, &mut Concrete>,
-    mut name: ResMut<'_, PolyName>,
-    file_dialog_state: Res<'_, FileDialogState>,
-    file_dialog: NonSend<'_, FileDialogToken>,
+    mut query: Query<&mut Concrete>,
+    mut name: ResMut<PolyName>,
+    file_dialog_state: Res<FileDialogState>,
+    file_dialog: NonSend<FileDialogToken>,
 ) {
     if file_dialog_state.is_changed() {
         match file_dialog_state.mode {
@@ -326,23 +325,23 @@ macro_rules! element_sort {
 #[allow(clippy::too_many_arguments)]
 pub fn show_top_panel(
     // Info about the application state.
-    egui_ctx: Res<'_, EguiContext>,
-    mut query: Query<'_, '_, &mut Concrete>,
-    keyboard: Res<'_, Input<KeyCode>>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut query: Query<&mut Concrete>,
+    keyboard: Res<Input<KeyCode>>,
 
     // The Miratope resources controlled by the top panel.
-    mut section_state: ResMut<'_, SectionState>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>,
-    mut file_dialog_state: ResMut<'_, FileDialogState>,
-    mut projection_type: ResMut<'_, ProjectionType>,
-    mut poly_name: ResMut<'_, PolyName>,
-    mut memory: ResMut<'_, Memory>,
-    mut show_memory: ResMut<'_, ShowMemory>,
-    mut show_help: ResMut<'_, ShowHelp>,
-    mut export_memory: ResMut<'_, ExportMemory>,
-    mut background_color: ResMut<'_, ClearColor>,
+    mut section_state: ResMut<SectionState>,
+    mut section_direction: ResMut<Vec<SectionDirection>>,
+    mut file_dialog_state: ResMut<FileDialogState>,
+    mut projection_type: ResMut<ProjectionType>,
+    mut poly_name: ResMut<PolyName>,
+    mut memory: ResMut<Memory>,
+    mut show_memory: ResMut<ShowMemory>,
+    mut show_help: ResMut<ShowHelp>,
+    mut export_memory: ResMut<ExportMemory>,
+    mut background_color: ResMut<ClearColor>,
 
-    mut visuals: ResMut<'_, egui::Visuals>,
+    mut visuals: ResMut<egui::Visuals>,
 
     // The different windows that can be shown.
     (
@@ -362,14 +361,15 @@ pub fn show_top_panel(
         mut faceting_settings,
 		mut rotate_window,
 		mut plane_window,
-    ): EguiWindows<'_>,
+    ): EguiWindows,
 ) {
+    let egui_ctx = egui_ctx.ctx_mut();
     // The top bar.
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx(), |ui| {
+    egui::TopBottomPanel::top("top_panel").show(egui_ctx, |ui| {
         menu::bar(ui, |ui| {
             
             // Operations on files.
-            menu::menu(ui, "File", |ui| {
+            menu::menu_button(ui, "File", |ui| {
                 // Loads a file.
                 if ui.button("Open").clicked() {
                     file_dialog_state.open();
@@ -418,7 +418,7 @@ pub fn show_top_panel(
             }
 
             // Configures the view.
-            menu::menu(ui, "View", |ui| {
+            menu::menu_button(ui, "View", |ui| {
                 let mut checked = projection_type.is_orthogonal();
 
                 if ui.checkbox(&mut checked, "Orthogonal projection").clicked() {
@@ -432,7 +432,7 @@ pub fn show_top_panel(
             });
 
             // Prints out properties about the loaded polytope.
-            menu::menu(ui, "Properties", |ui| {
+            menu::menu_button(ui, "Properties", |ui| {
                 // Determines the circumsphere of the polytope.
                 if ui.button("Circumsphere").clicked() {
                     if let Some(p) = query.iter_mut().next() {
@@ -522,7 +522,7 @@ pub fn show_top_panel(
                 }
             });
 
-            menu::menu(ui, "Transform", |ui| {
+            menu::menu_button(ui, "Transform", |ui| {
             
                 if ui.button("Scale to unit edge length").clicked() {
                     let mut p = query.iter_mut().next().unwrap();
@@ -578,7 +578,7 @@ pub fn show_top_panel(
             });
 
             // Operations on polytopes.
-            menu::menu(ui, "Operations", |ui| {
+            menu::menu_button(ui, "Operations", |ui| {
                 // Converts the active polytope into its dual.
                 if advanced(&keyboard) {
                     if ui.button("Dual...").clicked() {
@@ -788,7 +788,7 @@ pub fn show_top_panel(
                 };
             }
 
-            menu::menu(ui, "Faceting", |ui| {
+            menu::menu_button(ui, "Faceting", |ui| {
                 if ui.button("Enumerate facetings").clicked() {
                     if let Some(p) = query.iter_mut().next() {
                         let mut vertices_thing = (Vertices(vec![]), vec![]);
@@ -838,7 +838,7 @@ pub fn show_top_panel(
             if ui.button("Memory").clicked() {
                 show_memory.0 = !show_memory.0;
             }
-            memory.show(&mut query, &mut poly_name, &egui_ctx, &mut show_memory.0);
+            memory.show(&mut query, &mut poly_name, egui_ctx, &mut show_memory.0);
 
             if ui.button("Help").clicked() {
                 show_help.0 = !show_help.0;
@@ -846,7 +846,7 @@ pub fn show_top_panel(
             egui::Window::new("Help")
                 .open(&mut show_help.0)
                 .resizable(false)
-                .show(egui_ctx.ctx(), |ui| {
+                .show(egui_ctx, |ui| {
                     ui.heading("Hotkeys");
                     ui.label("V: toggle faces\nB: toggle wireframe");
                     ui.separator();
@@ -895,10 +895,10 @@ pub fn show_top_panel(
 /// cross-section view.
 fn show_views(
     ui: &mut Ui,
-    mut query: Query<'_, '_, &mut Concrete>,
-    poly_name: &mut ResMut<'_, PolyName>,
-    mut section_state: ResMut<'_, SectionState>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>
+    mut query: Query<&mut Concrete>,
+    poly_name: &mut ResMut<PolyName>,
+    mut section_state: ResMut<SectionState>,
+    mut section_direction: ResMut<Vec<SectionDirection>>
 ) {
     // The cross-section settings.
     if let SectionState::Active {
@@ -967,14 +967,15 @@ fn show_views(
             }
 
             // Cross sections on a lower dimension
-			if ui.add(egui::Button::new("+").enabled(
+			if ui.add_enabled(
                 section_direction.len() <
                     if let SectionState::Active {original_polytope, ..} = section_state.clone() {
-                        original_polytope.rank()-3
+                        original_polytope.rank() - 3
                     } else {
                         0
-                    }
-                )).clicked() {
+                    },
+                    egui::Button::new("+"),
+                ).clicked() {
 				let p = query.iter_mut().next().unwrap();
 				let dim = p.dim_or();
 				let mut direction = Vector::zeros(dim);
@@ -985,7 +986,7 @@ fn show_views(
 				section_direction.push(SectionDirection{0:direction});
             }
 			// Cross sections on a higher dimension
-			if ui.add(egui::Button::new("-").enabled(section_direction.len() > 1)).clicked() {
+			if ui.add_enabled(section_direction.len() > 1, egui::Button::new("-")).clicked() {
                 section_state.remove();
                 section_direction.pop();
             }

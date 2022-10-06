@@ -10,6 +10,8 @@ use std::{
     ops::{Index, IndexMut}, iter,
 };
 
+use bevy_ecs::prelude::Component;
+
 use super::{
     abs::{
         flag::{Flag, FlagChanges, FlagEvent, OrientedFlagIter},
@@ -30,7 +32,7 @@ use vec_like::*;
 
 /// Represents a [concrete polytope](https://polytope.miraheze.org/wiki/Polytope),
 /// which is an [`Abstract`] together with its corresponding vertices.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Component)]
 pub struct Concrete {
     /// The list of vertices as points in Euclidean space.
     // todo: come up with a more compact representation, making use of the fact

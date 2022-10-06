@@ -70,7 +70,7 @@ impl Default for ElementTypesRes {
 }
 
 impl ElementTypesRes {
-    fn from_poly(&self, poly: Mut<'_, Concrete>, poly_name: String) -> ElementTypesRes {
+    fn from_poly(&self, poly: Mut<Concrete>, poly_name: String) -> ElementTypesRes {
         let mut poly = poly.clone();
         poly.element_sort();
 
@@ -141,7 +141,6 @@ impl Plugin for RightPanelPlugin {
             // The top panel must be shown first.
             .add_system(
                 show_right_panel
-                    .system()
                     .label("show_right_panel")
                     .after("show_top_panel"),
             );
@@ -152,32 +151,31 @@ impl Plugin for RightPanelPlugin {
 #[allow(clippy::too_many_arguments)]
 pub fn show_right_panel(
     // Info about the application state.
-    egui_ctx: Res<'_, EguiContext>,
-    mut query: Query<'_, '_, &mut Concrete>,
-    mut poly_name: ResMut<'_, PolyName>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut query: Query<&mut Concrete>,
+    mut poly_name: ResMut<PolyName>,
 
     // The Miratope resources controlled by the right panel.
-    mut element_types: ResMut<'_, ElementTypesRes>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>,
-    section_state: Res<'_, SectionState>,
+    mut element_types: ResMut<ElementTypesRes>,
+    mut section_direction: ResMut<Vec<SectionDirection>>,
+    section_state: Res<SectionState>,
 
-    mut wiki_window: ResMut<'_, WikiWindow>,
+    mut wiki_window: ResMut<WikiWindow>,
 ) {
     // The right panel.
     egui::SidePanel::right("right_panel")
         .default_width(300.0)
         .max_width(450.0)
-        .show(egui_ctx.ctx(), |ui| {
-            
+        .show(egui_ctx.ctx_mut(), |ui| {
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new("Generate").enabled(!element_types.main)).clicked() {
+                if ui.add_enabled(!element_types.main, egui::Button::new("Generate")).clicked() {
                     if let Some(p) = query.iter_mut().next() {
                         element_types.main = true;
                         *element_types = element_types.from_poly(p, poly_name.0.clone());
                     }
                 }
     
-                if ui.add(egui::Button::new("Load").enabled(!element_types.main)).clicked() {
+                if ui.add_enabled(!element_types.main, egui::Button::new("Load")).clicked() {
                     if let Some(mut p) = query.iter_mut().next() {
                         element_types.main = true;
                         element_types.main_updating = true;
@@ -186,7 +184,7 @@ pub fn show_right_panel(
                     }
                 }
 
-                if ui.add(egui::Button::new("Wiki").enabled(element_types.active)).clicked() {
+                if ui.add_enabled(element_types.active, egui::Button::new("Wiki")).clicked() {
                     wiki_window.open();
                 }
             });
@@ -194,7 +192,7 @@ pub fn show_right_panel(
             ui.separator();
 
             if element_types.active {
-                egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::containers::ScrollArea::vertical().show(ui, |ui| {
                     for (r, types) in element_types.types.clone().into_iter().enumerate().skip(1) {
                         let poly = &element_types.poly;
                         let rank = element_types.poly.rank();

@@ -5,10 +5,7 @@ use std::collections::HashMap;
 use crate::ui::camera::ProjectionType;
 use crate::{Concrete, Float, Point, EPS};
 
-use bevy::{
-    prelude::Mesh,
-    render::{mesh::Indices, pipeline::PrimitiveTopology},
-};
+use bevy::render::mesh::{PrimitiveTopology, Mesh, Indices};
 use lyon::{math::point, path::Path, tessellation::*};
 use miratope_core::conc::cycle::CycleList;
 use miratope_core::{
@@ -211,11 +208,10 @@ fn normals(vertices: &[[f32; 3]]) -> Vec<[f32; 3]> {
 /// Returns an empty mesh.
 fn empty_mesh() -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::LineList);
-    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0; 3]]);
-    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vec![[0.0; 3]]);
-    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0; 2]]);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0; 3]]);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vec![[0.0; 3]]);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0; 2]]);
     mesh.set_indices(Some(Indices::U16(Vec::new())));
-
     mesh
 }
 
@@ -282,9 +278,9 @@ pub trait Renderable: ConcretePolytope {
 
         // Builds the actual mesh.
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 1.0]; vertices.len()]);
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals(&vertices));
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 1.0]; vertices.len()]);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals(&vertices));
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.set_indices(Some(Indices::U32(triangulation.triangles)));
 
         mesh
@@ -322,11 +318,10 @@ pub trait Renderable: ConcretePolytope {
 
         // Sets the mesh attributes.
         let mut mesh = Mesh::new(PrimitiveTopology::LineList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals(&vertices));
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0; 2]; vertex_count]);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals(&vertices));
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0; 2]; vertex_count]);
         mesh.set_indices(Some(Indices::U16(indices)));
-
         mesh
     }
 }

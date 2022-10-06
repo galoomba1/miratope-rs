@@ -5,19 +5,19 @@ edition = "2018"
 
 [dependencies]
 vec-like = { path = "../vec-like" }
-approx = "0.5"
-dyn-clone = "1.0"
-gcd = "2.0"
-itertools = "0.10"
-nalgebra = { version = "0.29", features = ["serde-serialize"] }
-ordered-float = "2.4"
+approx = "0.5.1"
+dyn-clone = "1.0.9"
+gcd = "2.1.0"
+itertools = "0.10.5"
+nalgebra = { version = "0.31.1", features = ["serde-serialize"] }
+ordered-float = "3.2.0"
 partitions = "0.2.4"
-petgraph = "0.6"
-rayon = "1.5"
-ron = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-strum = "0.21"
-strum_macros = "0.21"
-unchecked_unwrap = "3"
-xml-rs = "0.8"
-zip = "0.5"
+petgraph = "0.6.2"
+rayon = "1.5.3"
+ron = "0.8.0"
+serde = { version = "1.0.145", features = ["derive"] }
+strum = "0.24.1"
+strum_macros = "0.24.3"
+xml-rs = "0.8.4"
+zip = "0.6.2"
+bevy_ecs = "0.8.1"

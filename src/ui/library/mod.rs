@@ -29,7 +29,6 @@ impl Plugin for LibraryPlugin {
         // positioning.
         app.insert_resource(library).add_system(
             show_library
-                .system()
                 .label("show_library")
                 .after("show_top_panel"),
         );
@@ -245,19 +244,19 @@ impl Library {
 
 /// The system that shows the Miratope library.
 fn show_library(
-    egui_ctx: Res<'_, EguiContext>,
-    mut query: Query<'_, '_, &mut Concrete>,
-    mut poly_name: ResMut<'_, PolyName>,
-    mut library: ResMut<'_, Option<Library>>,
-    lib_path: Res<'_, LibPath>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut query: Query<&mut Concrete>,
+    mut poly_name: ResMut<PolyName>,
+    mut library: ResMut<Option<Library>>,
+    lib_path: Res<LibPath>,
 ) {
     // Shows the polytope library.
     if let Some(library) = library.as_mut() {
         egui::SidePanel::left("left_panel")
             .default_width(300.0)
             .max_width(450.0)
-            .show(egui_ctx.ctx(), |ui| {
-                egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(egui_ctx.ctx_mut(), |ui| {
+                egui::containers::ScrollArea::vertical().show(ui, |ui| {
                     match library.show(ui, PathBuf::from(lib_path.as_ref())) {
                         // No action needs to be taken.
                         ShowResult::None => {}
