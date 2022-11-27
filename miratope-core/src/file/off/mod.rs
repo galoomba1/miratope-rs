@@ -7,9 +7,9 @@ use super::Position;
 
 use crate::{
     abs::{AbstractBuilder, Ranked, SubelementList, Subelements},
-    conc::{cycle::CycleList, Concrete},
+    conc::{cycle::CycleList, Concrete, element_types::EL_NAMES},
     geometry::Point,
-    Polytope, COMPONENTS, ELEMENT_NAMES,
+    Polytope, COMPONENTS
 };
 
 use vec_like::VecLike;
@@ -59,7 +59,7 @@ pub type OffParseResult<T> = Result<T, OffParseError>;
 
 /// Gets the name for an element with a given rank.
 fn element_name(rank: usize) -> String {
-    match ELEMENT_NAMES.get(rank) {
+    match EL_NAMES.get(rank) {
         Some(&name) => String::from(name),
         None => rank.to_string() + "-elements",
     }
