@@ -1465,6 +1465,21 @@ impl UpdateWindow for TruncateWindow {
         self.truncate_type = vec![false; dim];
         self.depth = vec![1.0; dim];
     }
+
+    fn update_system(
+        mut self_: ResMut<'_, Self>,
+        query: Query<'_, '_, (&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+    ) where
+        Self: 'static,
+    {
+        if let Some((poly, _, _)) = query.iter().next() {
+            if poly.rank() == 0 {
+                self_.update(0)
+            } else {
+                self_.update(poly.rank() - 1)
+            }
+        }
+    }
 }
 
 /// A window that scales a polytope.

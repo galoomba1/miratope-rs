@@ -912,9 +912,13 @@ pub trait ConcretePolytope: Polytope {
         let flat_vertices = subspace.flatten_vec(self.vertices());
 
         match flat_vertices.get(0)?.len().cmp(&(rank - 1)) {
-            // Degenerate polytopes have volume 0.
+            // Degenerate polytopes have volume 0 if it's orientable.
             std::cmp::Ordering::Less => {
-                return Some(0.0);
+                if self.orientable() {
+                    return Some(0.0)
+                } else {
+                    return None
+                }
             }
             // Skew polytopes don't have a defined volume.
             std::cmp::Ordering::Greater => {
@@ -1332,7 +1336,7 @@ impl ConcretePolytope for Concrete {
 
         let mut vertex_coords = Vec::<Point<f64>>::new();
         for subflag in subflags {
-            let mut vector = Point::<f64>::from_vec(vec![0.0; self.rank() - 1]);
+            let mut vector = Point::<f64>::from_vec(vec![0.0; self.dim().unwrap()]);
             for (r, i) in subflag.iter().enumerate() {
                 vector += element_vertices[truncate_type[r] + 1][*i].clone() * depth[truncate_type[r]];
             }
