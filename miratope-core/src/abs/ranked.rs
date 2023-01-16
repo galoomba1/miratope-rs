@@ -518,7 +518,7 @@ impl AbstractBuilder {
 
     /// Initializes a new empty abstract builder with a capacity to store
     /// a specified amount of elements.
-    fn with_capacity(rank: usize) -> Self {
+    pub fn with_capacity(rank: usize) -> Self {
         Self(Ranks::with_capacity(rank))
     }
 
