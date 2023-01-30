@@ -1225,6 +1225,7 @@ impl Concrete {
 
                     for (idx, vertex) in vertices.iter().enumerate() {
                         let dot = OrderedFloat(vertex.dot(point));
+                        // TODO: way too precise
                         if let Some(list) = map.get_mut(&dot) {
                             list.push(idx);
                         } else {
