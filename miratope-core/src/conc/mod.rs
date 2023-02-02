@@ -22,8 +22,7 @@ use crate::{
     float::Float,
     geometry::*,
 };
-
-use approx::{abs_diff_eq, abs_diff_ne};
+use approx::abs_diff_eq;
 use partitions::{PartitionVec, partition_vec};
 use rayon::prelude::*;
 use vec_like::*;
@@ -644,37 +643,7 @@ pub trait ConcretePolytope: Polytope {
     /// Calculates the circumsphere of a polytope. Returns `None` if the
     /// polytope isn't circumscribable.
     fn circumsphere(&self) -> Option<Hypersphere<f64>> {
-        let mut vertices = self.vertices().iter();
-
-        let first_vertex = vertices.next()?.clone();
-        let mut center = first_vertex.clone();
-        let mut subspace = Subspace::new(first_vertex.clone());
-
-        for vertex in vertices {
-            // If the new vertex does not lie on the hyperplane of the others:
-            if let Some(basis_vector) = subspace.add(vertex) {
-                // Calculates the new circumcenter.
-                let distance: f64 = ((&center - vertex).norm_squared()
-                    - (&center - &first_vertex).norm_squared())
-                    / (2.0 * (vertex - &first_vertex).dot(basis_vector));
-
-                center += basis_vector * distance;
-            }
-            // If the new vertex lies on the others' hyperplane, but is not at
-            // the correct distance from the first vertex:
-            else if abs_diff_ne!(
-                (&center - &first_vertex).norm(),
-                (&center - vertex).norm(),
-                epsilon = f64::EPS
-            ) {
-                return None;
-            }
-        }
-
-        Some(Hypersphere {
-            squared_radius: (&center - first_vertex).norm_squared(),
-            center,
-        })
+        Hypersphere::circumsphere(self.vertices())
     }
 
     /// Calculates the gravicenter of a polytope, or returns `None` in the case

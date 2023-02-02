@@ -91,6 +91,40 @@ impl<T: Float> Hypersphere<T> {
     pub fn reciprocate(&self, mut p: Point<T>) -> Option<Point<T>> {
         self.reciprocate_mut(&mut p).then(|| p)
     }
+
+    /// Calculates the circumsphere of points. Returns `None` if the
+    /// points aren't circumscribable.
+    pub fn circumsphere(points: &Vec<Point<T>>) -> Option<Hypersphere<T>> {
+        let first_point = points[0].clone();
+        let mut center = first_point.clone();
+        let mut subspace = Subspace::new(first_point.clone());
+
+        for point in points {
+            // If the new point does not lie on the hyperplane of the others:
+            if let Some(basis_vector) = subspace.add(point) {
+                // Calculates the new circumcenter.
+                let distance = ((&center - point).norm_squared()
+                    - (&center - &first_point).norm_squared())
+                    / (T::TWO * (point - &first_point).dot(basis_vector));
+
+                center += basis_vector * distance;
+            }
+            // If the new point lies on the others' hyperplane, but is not at
+            // the correct distance from the first vertex:
+            else if abs_diff_ne!(
+                (&center - &first_point).norm(),
+                (&center - point).norm(),
+                epsilon = T::EPS
+            ) {
+                return None;
+            }
+        }
+
+        Some(Hypersphere {
+            squared_radius: (&center - first_point).norm_squared(),
+            center,
+        })
+    }
 }
 
 /// Represents an (affine) subspace, passing through a given point and generated
