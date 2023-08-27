@@ -440,15 +440,20 @@ pub trait DuoWindow: Window {
                 Slot::Loaded => LOADED_LABEL.to_string(),
 
                 // Something is selected from the memory.
-                Slot::Memory(selected_idx) => match memory[*selected_idx].as_ref() {
-                    // Whatever was previously selected got deleted off the memory.
-                    None => {
-                        *selected = Slot::None;
-                        SELECT.to_string()
-                    }
+                Slot::Memory(selected_idx) => if *selected_idx < memory.len() {
+                    match memory[*selected_idx].as_ref() {
+                        // Whatever was previously selected got deleted off the memory.
+                        None => {
+                            *selected = Slot::None;
+                            SELECT.to_string()
+                        }
 
-                    // Shows the name of the selected polytope.
-                    Some(_) => slot_label(*selected_idx),
+                        // Shows the name of the selected polytope.
+                        Some(_) => slot_label(*selected_idx),
+                    }
+                } else {
+                    *selected = Slot::None;
+                    SELECT.to_string()
                 },
             };
 
@@ -1699,15 +1704,20 @@ impl MemoryWindow for FacetingSettings {
                 Slot::Loaded => LOADED_LABEL.to_string(),
 
                 // Something is selected from the memory.
-                Slot::Memory(selected_idx) => match memory[selected_idx].as_ref() {
-                    // Whatever was previously selected got deleted off the memory.
-                    None => {
-                        self.slot = Slot::None;
-                        SELECT.to_string()
-                    }
+                Slot::Memory(selected_idx) => if selected_idx < memory.len() {
+                    match memory[selected_idx].as_ref() {
+                        // Whatever was previously selected got deleted off the memory.
+                        None => {
+                            self.slot = Slot::None;
+                            SELECT.to_string()
+                        }
 
-                    // Shows the name of the selected polytope.
-                    Some(_) => slot_label(selected_idx),
+                        // Shows the name of the selected polytope.
+                        Some(_) => slot_label(selected_idx),
+                    }
+                } else {
+                    self.slot = Slot::None;
+                    SELECT.to_string()
                 },
             };
 
