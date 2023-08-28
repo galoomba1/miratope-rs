@@ -1461,12 +1461,12 @@ impl Concrete {
                             let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
                             if let Some(min) = min_inradius {
                                 if inradius < min - f64::EPS {
-                                    break
+                                    continue
                                 }
                             }
                             if let Some(max) = max_inradius {
                                 if inradius > max + f64::EPS {
-                                    break
+                                    continue
                                 }
                             }
 
