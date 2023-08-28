@@ -262,13 +262,15 @@ impl<'a> OffReader<'a> {
             el_nums.push(self.iter.parse_next()?);
         }
 
-        // A polygon always has as many vertices as edges.
+        // A polygon always has as many vertices as edges... but only if the polygon is dyadic.
         if rank == 3 {
             el_nums.push(el_nums[0]);
         }
 
         // 2-elements go before 1-elements, we're undoing that.
-        el_nums.swap(1, 2);
+        if rank > 2 {
+            el_nums.swap(1, 2);
+        }
 
         Ok(el_nums)
     }
@@ -413,7 +415,6 @@ impl<'a> OffReader<'a> {
         match rank {
             0 => return Ok(Concrete::nullitope()),
             1 => return Ok(Concrete::point()),
-            2 => return Ok(Concrete::dyad()),
             _ => {}
         }
 
