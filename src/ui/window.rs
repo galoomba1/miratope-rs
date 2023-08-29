@@ -1585,6 +1585,9 @@ pub struct FacetingSettings {
     /// The maximum inradius.
     pub max_inradius: f64,
 
+    /// Whether to exclude planes passing through the origin.
+    pub exclude_hemis: bool,
+
     /// Whether to only consider hyperplanes perpendicular to a vertex.
     pub only_below_vertex: bool,
 
@@ -1631,6 +1634,7 @@ impl Default for FacetingSettings {
             min_inradius: 0.,
             do_max_inradius: false,
             max_inradius: 0.,
+            exclude_hemis: false,
             only_below_vertex: false,
             compounds: false,
             mark_fissary: true,
@@ -1799,6 +1803,10 @@ impl MemoryWindow for FacetingSettings {
                 );
                 ui.label("Max inradius");
             });
+    
+            ui.add(
+                egui::Checkbox::new(&mut self.exclude_hemis, "Exclude hemis")
+            );
     
             ui.add(
                 egui::Checkbox::new(&mut self.only_below_vertex, "Only hyperplanes perpendicular to a vertex")

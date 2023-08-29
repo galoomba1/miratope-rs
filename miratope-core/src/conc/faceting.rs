@@ -1096,6 +1096,7 @@ impl Concrete {
         mut max_edge_length: Option<f64>,
         min_inradius: Option<f64>,
         max_inradius: Option<f64>,
+        exclude_hemis: bool,
         only_below_vertex: bool,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
@@ -1276,6 +1277,11 @@ impl Concrete {
                             }
                             if let Some(max) = max_inradius {
                                 if inradius > max + f64::EPS {
+                                    continue
+                                }
+                            }
+                            if exclude_hemis {
+                                if inradius.abs() < f64::EPS {
                                     continue
                                 }
                             }
@@ -1467,6 +1473,11 @@ impl Concrete {
                             if let Some(max) = max_inradius {
                                 if inradius > max + f64::EPS {
                                     continue
+                                }
+                            }
+                            if exclude_hemis {
+                                if inradius.abs() < f64::EPS {
+                                    break
                                 }
                             }
 

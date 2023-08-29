@@ -811,6 +811,7 @@ pub fn show_top_panel(
                             if faceting_settings.do_max_edge_length {Some(faceting_settings.max_edge_length)} else {None}, 
                             if faceting_settings.do_min_inradius {Some(faceting_settings.min_inradius)} else {None}, 
                             if faceting_settings.do_max_inradius {Some(faceting_settings.max_inradius)} else {None}, 
+                            faceting_settings.exclude_hemis,
                             faceting_settings.only_below_vertex,
                             if faceting_settings.max_facet_types == 0 {None} else {Some(faceting_settings.max_facet_types)},
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
