@@ -1224,8 +1224,7 @@ impl Concrete {
                     let point = &vertices[rep];
 
                     for (idx, vertex) in vertices.iter().enumerate() {
-                        let dot = OrderedFloat(vertex.dot(point));
-                        // TODO: way too precise
+                        let dot = OrderedFloat((vertex.dot(point)*1e7).round());
                         if let Some(list) = map.get_mut(&dot) {
                             list.push(idx);
                         } else {
@@ -1249,18 +1248,23 @@ impl Concrete {
                         dbg_count += 1;
 
                         // WLOG checks if the vertices are all the right distance away from the first vertex.
+                        let mut count = 0;
                         for v in &list[1..] {
                             let edge_length = (&vertices[*v]-&vertices[list[0]]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
-                                    continue 'd;
+                                    continue
                                 }
                             }
                             if let Some(max) = max_edge_length {
                                 if edge_length > max + f64::EPS {
-                                    continue 'd;
+                                    continue
                                 }
                             }
+                            count += 1;
+                        }
+                        if count < rank-2 {
+                            continue 'd
                         }
 
                         // We define a hyperplane from the list of vertices.
