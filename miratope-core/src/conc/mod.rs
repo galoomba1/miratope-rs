@@ -213,8 +213,8 @@ impl Polytope for Concrete {
 
         Ok(None)
     }
-	
-	
+    
+    
     /// Makes a polytope strongly connected. Splits compounds into their components.
     fn defiss(&self) -> Vec<Concrete> {
         if self.rank() < 1 {
@@ -992,13 +992,13 @@ pub trait ConcretePolytope: Polytope {
 
     /// Slices the polytope through a given plane.
     fn cross_section(&self, slice: &Hyperplane<f64>) -> Self;
-	
-	/// Checks if is fissary.
+    
+    /// Checks if is fissary.
     fn is_fissary(&self) -> bool;
-	
-	/// Compounds coplanar facets
+    
+    /// Compounds coplanar facets
     fn fuse_facets(&self) -> Self;
-	
+    
 }
 
 impl ConcretePolytope for Concrete {
@@ -1342,81 +1342,77 @@ impl ConcretePolytope for Concrete {
 
         Self::new(vertex_coords, abs)
     }
-	
-	/// Checks if is fissary.
+    
+    /// Checks if is fissary.
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
-		
+        
         let mut i = 1;
-		while i < types.len() {
-			if i == self.rank() {
-				break;
-			}
-			let mut j = 0;
-			while j < types[i].len() {
-				let example = types[i][j].example;
-				
-				let mut element = self.abs.element(i, example).unwrap();
-				
-				element.element_sort();
-				if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
-					return true;
-				}
-				
-				let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
-				figure.element_sort();
-				if figure.is_compound() {
-					return true;
-				}
-				j = j+1;
-			}
-			i = i+1;
-		}
-		return false;
+        while i < types.len() {
+            if i == self.rank() {
+                break;
+            }
+            let mut j = 0;
+            while j < types[i].len() {
+                let example = types[i][j].example;
+                
+                let mut element = self.abs.element(i, example).unwrap();
+                
+                element.element_sort();
+                if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
+                    return true;
+                }
+                
+                let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
+                figure.element_sort();
+                if figure.is_compound() {
+                    return true;
+                }
+                j = j+1;
+            }
+            i = i+1;
+        }
+        return false;
     }
-	
-	/// Fuses coplanar facets
-	fn fuse_facets(&self) -> Self {
-		let mut i = 0 as usize;
-		
-		let mut builder = AbstractBuilder::new();
-		
-		while i < self.rank()-1 {
-			builder.push_empty();
-			for el in &self.abs.ranks()[i] {
-				builder.push_subs(el.subs.clone());
-			}
-			i+=1;
-		}
+    
+    /// Fuses coplanar facets
+    fn fuse_facets(&self) -> Self {
+        
+        let mut builder = AbstractBuilder::new();
+        
+        for i in 0..self.rank()-1 {
+            builder.push_empty();
+            for el in &self.abs.ranks()[i] {
+                builder.push_subs(el.subs.clone());
+            }
+        }
 
-		builder.push_empty();
+        builder.push_empty();
 
-		i = 0 as usize;	
-		let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
-		let mut current = 0 as usize;
-		while i < self.facet_count() {
-			let temp = self.element(self.rank() - 1, i).unwrap();
-			let facetvert = temp.vertices.iter();
-			let facet = self.abs.ranks()[self.rank() - 1][i].clone();
-			let subspace = Subspace::from_points(facetvert);
-			
-			let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
-			contained_vertices.sort();
-			if compound.contains_key(&contained_vertices) {
-				compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
-			} else {
-				compound.insert(contained_vertices,(current,facet.subs.clone()));
-				current+=1;
-			}
-			i+=1;
-		}
-		let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
-		compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
-		compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
-		
-		builder.push_max();
-		unsafe { Self::new(self.vertices.clone(),builder.build()) }
-	}
+        let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
+        let mut current = 0 as usize;
+        for i in 0..self.facet_count() {
+            let temp = self.element(self.rank() - 1, i).unwrap();
+            let facetvert = temp.vertices.iter();
+            let facet = self.abs.ranks()[self.rank() - 1][i].clone();
+            let subspace = Subspace::from_points(facetvert);
+            
+            let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
+            contained_vertices.sort();
+            if compound.contains_key(&contained_vertices) {
+                compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
+            } else {
+                compound.insert(contained_vertices,(current,facet.subs.clone()));
+                current+=1;
+            }
+        }
+        let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
+        compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
+        compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
+        
+        builder.push_max();
+        unsafe { Self::new(self.vertices.clone(),builder.build()) }
+    }
 }
 
 #[cfg(test)]

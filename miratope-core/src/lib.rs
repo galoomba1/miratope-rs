@@ -16,7 +16,7 @@
 )]*/
 
 //! This is the main dependency of
-//! [Miratope](https://github.com/vihdzp/miratope-rs). It contains all code
+//! [Miratope](https://github.com/galoomba1/miratope-rs). It contains all code
 //! to build and name [`Abstract`] and [`Concrete`](conc::Concrete) polytopes
 //! alike.
 //!
@@ -40,12 +40,6 @@ use abs::{
 };
 
 use vec_like::VecLike;
-
-/// The names for 0-elements, 1-elements, 2-elements, and so on.
-const ELEMENT_NAMES: [&str; 12] = [
-    "", "Vertices", "Edges", "Faces", "Cells", "Tera", "Peta", "Exa", "Zetta", "Yotta", "Xenna",
-    "Daka",
-];
 
 /// The word "Components".
 const COMPONENTS: &str = "Components";
