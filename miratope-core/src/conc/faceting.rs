@@ -6,7 +6,7 @@ use crate::{
     abs::{Abstract, Element, ElementList, Ranked, Ranks, Subelements, Superelements, AbstractBuilder},
     conc::{Concrete, ConcretePolytope},
     float::Float,
-    group::{Group}, geometry::{Matrix, PointOrd, Subspace, Point}, Polytope
+    group::Group, geometry::{Matrix, PointOrd, Subspace, Point}, Polytope
 };
 
 use ordered_float::OrderedFloat;
@@ -1236,7 +1236,7 @@ impl Concrete {
 
                     let mut dbg_count: u64 = 0;
 
-                    'd: for (_dot, l) in &map {
+                    for (_dot, l) in &map {
                         let mut list = l.clone();
                         list.sort_unstable();
 
@@ -1264,7 +1264,7 @@ impl Concrete {
                             count += 1;
                         }
                         if count < rank-2 {
-                            continue 'd
+                            continue
                         }
 
                         // We define a hyperplane from the list of vertices.
