@@ -1329,6 +1329,13 @@ impl ConcretePolytope for Concrete {
 			while j < types[i].len() {
 				let example = types[i][j].example;
 				
+				let mut element = self.abs.element(i, example).unwrap();
+				
+				element.element_sort();
+				if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
+					return true;
+				}
+				
 				let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
 				figure.element_sort();
 				if figure.is_compound() {
