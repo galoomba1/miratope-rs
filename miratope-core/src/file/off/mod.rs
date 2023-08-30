@@ -636,7 +636,7 @@ impl<'a> OffWriter<'a> {
 
             if rank == 3 {
                 self.push_str(", Components");
-            } else {
+            } else if rank > 3 {
                 self.push_str(", Faces, Edges");
 
                 for r in 4..rank {
@@ -716,11 +716,11 @@ impl<'a> OffWriter<'a> {
 
         // Writes the components in the polygonal case.
         if rank == 3 {
-            for component in CycleList::from_edges(self.poly[1].iter().map(|vert| &vert.sups)) {
+            for component in CycleList::from_edges(self.poly[2].iter().map(|edge| &edge.subs)) {
                 self.push_to_str(component.len());
-                for edge in component {
+                for vert in component {
                     self.push(' ');
-                    self.push_to_str(edge);
+                    self.push_to_str(vert);
                 }
                 self.push('\n');
             }
