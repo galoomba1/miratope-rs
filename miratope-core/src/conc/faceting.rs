@@ -1384,48 +1384,45 @@ impl Concrete {
                                 now = Instant::now();
                             }
 
-                            let mut wrong_edge = false;
-
                             let edge_length = (&vertices[tuple[0]]-&vertices[new_vertex]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
-                                    wrong_edge = true;
+                                    continue;
                                 }
                             }
                             if let Some(max) = max_edge_length {
                                 if edge_length > max + f64::EPS {
-                                    wrong_edge = true;
+                                    continue;
                                 }
-                            }
-                            if wrong_edge {
-                                continue;
                             }
 
                             let mut new_tuple = tuple.clone();
                             new_tuple.push(new_vertex);
 
-                            let mut already_seen = false;
-                            for row in &vertex_map {
-                                let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
-                                moved.sort_unstable();
-
-                                if checked.contains(&moved) {
-                                    already_seen = true;
-                                    break;
-                                }
-                            }
-                            if already_seen {
-                                continue;
-                            }
-
-                            new_tuple.sort_unstable();
-
                             let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
                             if subspace.rank() == number-1 {
-                                new_tuple_orbits.push(new_tuple.clone());
-                            }
+                                let mut subspace_verts = Vec::new();
+                                for (idx, v) in vertices.iter().enumerate() {
+                                    if subspace.is_outer(&v) {
+                                        subspace_verts.push(idx)
+                                    }
+                                }
 
-                            checked.insert(new_tuple);
+                                let mut is_new = true;
+                                for row in &vertex_map {
+                                    let mut moved: Vec<usize> = subspace_verts.iter().map(|x| row[*x]).collect();
+                                    moved.sort_unstable();
+
+                                    if checked.contains(&moved) {
+                                        is_new = false;
+                                        break;
+                                    }
+                                }
+                                if is_new {
+                                    checked.insert(subspace_verts.clone());
+                                    new_tuple_orbits.push(subspace_verts);
+                                }
+                            }
                         }
                     }
                     println!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
