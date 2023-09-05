@@ -24,12 +24,13 @@ use vec_like::*;
 /// of the vertices on the path.
 ///
 /// If the cycle isn't 2D, we return `None`.
-pub fn path(cycles: &CycleList, vertices: &[Point]) -> Option<Path> {
+pub fn path(cycles: &CycleList, vertices: &[Point]) -> Option<Vec<Path>> {
     let dim = vertices[0].len();
-    let mut builder = Path::builder();
+    let mut paths = Vec::new();
 
     for (idx, cycle) in cycles.iter().enumerate() {
         let mut cycle_iter = cycle.iter().map(|&idx| &vertices[idx]);
+        let mut builder = Path::builder();
 
         // We don't bother with any polygons that aren't in 2D space.
         let s = Subspace::from_points_with(cycle_iter.clone(), 2)?;
@@ -83,9 +84,10 @@ pub fn path(cycles: &CycleList, vertices: &[Point]) -> Option<Path> {
         }
 
         builder.end(idx + 1 == cycles.len());
+        paths.push(builder.build());
     }
 
-    Some(builder.build())
+    Some(paths)
 }
 
 /// Represents a triangulation of the faces of a [`Concrete`]. It stores the
@@ -119,67 +121,67 @@ impl Triangulation {
         for face in faces {
             // We tesselate this path.
             let cycles = CycleList::from_edges(face.subs.iter().map(|&i| &edges[i].subs));
-            if let Some(path) = path(&cycles, &polytope.vertices) {
-                let mut geometry: VertexBuffers<_, u32> = VertexBuffers::new();
+            if let Some(paths) = path(&cycles, &polytope.vertices) {
+                for (idx, path) in paths.iter().enumerate() {
+                    let mut geometry: VertexBuffers<_, u32> = VertexBuffers::new();
 
-                // Configures all of the options of the tessellator.
-                FillTessellator::new()
-                    .tessellate_with_ids(
-                        path.id_iter(),
-                        &path,
-                        None,
-                        &FillOptions::with_fill_rule(Default::default(), FillRule::NonZero)
-                            .with_tolerance(EPS as f32),
-                        &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex<'_>| {
-                            vertex.sources().next().unwrap()
-                        }),
-                    )
-                    .unwrap();
+                    // Configures all of the options of the tessellator.
+                    FillTessellator::new()
+                        .tessellate_with_ids(
+                            path.id_iter(),
+                            path,
+                            None,
+                            &FillOptions::with_fill_rule(Default::default(), FillRule::NonZero)
+                                .with_tolerance(EPS as f32),
+                            &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex<'_>| {
+                                vertex.sources().next().unwrap()
+                            }),
+                        )
+                        .unwrap();
 
-                // Maps EndpointIds to the indices in the original vertex list.
-                let mut id_to_idx = Vec::new();
-                for cycle in cycles {
-                    for idx in cycle {
-                        id_to_idx.push(idx);
+                    // Maps EndpointIds to the indices in the original vertex list.
+                    let mut id_to_idx = Vec::new();
+                    for idx in &cycles[idx] {
+                        id_to_idx.push(*idx);
                     }
-                }
 
-                // We map the output vertices to the original ones, and add any
-                // extra vertices that may be needed.
-                let mut vertex_hash = HashMap::new();
+                    // We map the output vertices to the original ones, and add any
+                    // extra vertices that may be needed.
+                    let mut vertex_hash = HashMap::new();
 
-                for (new_id, vertex_source) in geometry.vertices.into_iter().enumerate() {
-                    let new_id = new_id as u32;
+                    for (new_id, vertex_source) in geometry.vertices.into_iter().enumerate() {
+                        let new_id = new_id as u32;
 
-                    match vertex_source {
-                        // This is one of the concrete vertices of the polytope.
-                        VertexSource::Endpoint { id } => {
-                            vertex_hash.insert(new_id, id_to_idx[id.to_usize()] as u32);
-                        }
+                        match vertex_source {
+                            // This is one of the concrete vertices of the polytope.
+                            VertexSource::Endpoint { id } => {
+                                vertex_hash.insert(new_id, id_to_idx[id.to_usize()] as u32);
+                            }
 
-                        // This is a new vertex that has been added to the tesselation.
-                        VertexSource::Edge { from, to, t } => {
-                            let from = &polytope.vertices[id_to_idx[from.to_usize()]];
-                            let to = &polytope.vertices[id_to_idx[to.to_usize()]];
+                            // This is a new vertex that has been added to the tesselation.
+                            VertexSource::Edge { from, to, t } => {
+                                let from = &polytope.vertices[id_to_idx[from.to_usize()]];
+                                let to = &polytope.vertices[id_to_idx[to.to_usize()]];
 
-                            let t = t as Float;
-                            let p = from * (1.0 - t) + to * t;
+                                let t = t as Float;
+                                let p = from * (1.0 - t) + to * t;
 
-                            vertex_hash
-                                .insert(new_id, concrete_vertex_len + extra_vertices.len() as u32);
+                                vertex_hash
+                                    .insert(new_id, concrete_vertex_len + extra_vertices.len() as u32);
 
-                            extra_vertices.push(p);
+                                extra_vertices.push(p);
+                            }
                         }
                     }
-                }
 
-                // Add all of the new indices we've found onto the triangle vector.
-                for new_idx in geometry
-                    .indices
-                    .iter()
-                    .map(|idx| *vertex_hash.get(idx).unwrap())
-                {
-                    triangles.push(new_idx);
+                    // Add all of the new indices we've found onto the triangle vector.
+                    for new_idx in geometry
+                        .indices
+                        .iter()
+                        .map(|idx| *vertex_hash.get(idx).unwrap())
+                    {
+                        triangles.push(new_idx);
+                    }
                 }
             }
         }
@@ -262,16 +264,9 @@ pub trait Renderable: ConcretePolytope {
             return empty_mesh();
         }
 
-        let mut poly = self.clone();
-        
-        if poly.rank() == 3 {
-            poly = poly.ditope();
-            poly.untangle_faces();
-        }
-
         // Triangulates the polytope's faces, projects the vertices of both the
         // polytope and the triangulation.
-        let triangulation = Triangulation::new(poly.con());
+        let triangulation = Triangulation::new(self.con());
         let vertices = vertex_coords(
             self.con(),
             self.vertices()
