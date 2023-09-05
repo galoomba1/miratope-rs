@@ -10,7 +10,7 @@ use bevy::{
     render::{mesh::Indices, pipeline::PrimitiveTopology},
 };
 use lyon::{math::point, path::Path, tessellation::*};
-use miratope_core::conc::cycle::CycleList;
+use miratope_core::conc::cycle::{Cycle, CycleList};
 use miratope_core::{
     abs::{ElementList, Ranked},
     conc::ConcretePolytope,
@@ -24,70 +24,65 @@ use vec_like::*;
 /// of the vertices on the path.
 ///
 /// If the cycle isn't 2D, we return `None`.
-pub fn path(cycles: &CycleList, vertices: &[Point]) -> Option<Vec<Path>> {
+pub fn path(cycle: &Cycle, vertices: &[Point]) -> Option<Path> {
     let dim = vertices[0].len();
-    let mut paths = Vec::new();
+    let mut builder = Path::builder();
+    let mut cycle_iter = cycle.iter().map(|&idx| &vertices[idx]);
 
-    for (idx, cycle) in cycles.iter().enumerate() {
-        let mut cycle_iter = cycle.iter().map(|&idx| &vertices[idx]);
-        let mut builder = Path::builder();
+    // We don't bother with any polygons that aren't in 2D space.
+    let s = Subspace::from_points_with(cycle_iter.clone(), 2)?;
 
-        // We don't bother with any polygons that aren't in 2D space.
-        let s = Subspace::from_points_with(cycle_iter.clone(), 2)?;
+    // We find the two axis directions most convenient for projecting down.
+    // Convenience is measured as the length of an axis vector projected
+    // down onto the plane our cycle lies in.
 
-        // We find the two axis directions most convenient for projecting down.
-        // Convenience is measured as the length of an axis vector projected
-        // down onto the plane our cycle lies in.
+    // The index of the axis vector that gives the largest length when
+    // projected, and that such length.
+    let mut idx0 = 0;
+    let mut len0 = 0.0;
 
-        // The index of the axis vector that gives the largest length when
-        // projected, and that such length.
-        let mut idx0 = 0;
-        let mut len0 = 0.0;
+    // The index of the axis vector that gives the second largest length
+    // when projected, and that such length.
+    let mut idx1 = 0;
+    let mut len1 = 0.0;
 
-        // The index of the axis vector that gives the second largest length
-        // when projected, and that such length.
-        let mut idx1 = 0;
-        let mut len1 = 0.0;
+    // We compute idx0 and idx1 real quick.
+    let mut e = Point::zeros(dim);
+    for i in 0..dim {
+        e[i] = 1.0;
 
-        // We compute idx0 and idx1 real quick.
-        let mut e = Point::zeros(dim);
-        for i in 0..dim {
-            e[i] = 1.0;
-
-            let len = s.project(&e).norm();
-            // This is the largest length we've found so far.
-            if len > len0 {
-                len1 = len0;
-                idx1 = idx0;
-                len0 = len;
-                idx0 = i;
-            }
-            // This is the second largest length we've found so far.
-            else if len > len1 {
-                len1 = len;
-                idx1 = i;
-            }
-
-            e[i] = 0.0;
+        let len = s.project(&e).norm();
+        // This is the largest length we've found so far.
+        if len > len0 {
+            len1 = len0;
+            idx1 = idx0;
+            len0 = len;
+            idx0 = i;
+        }
+        // This is the second largest length we've found so far.
+        else if len > len1 {
+            len1 = len;
+            idx1 = i;
         }
 
-        // Converts a point in the polytope to a point in the path via
-        // orthogonal projection at our convenient axes.
-        let path_point = |v: &Point| point(v[idx0] as f32, v[idx1] as f32);
-
-        // We build a path from the polygon.
-        let v = cycle_iter.next().unwrap();
-        builder.begin(path_point(v));
-
-        for v in cycle_iter {
-            builder.line_to(path_point(v));
-        }
-
-        builder.end(idx + 1 == cycles.len());
-        paths.push(builder.build());
+        e[i] = 0.0;
     }
 
-    Some(paths)
+    // Converts a point in the polytope to a point in the path via
+    // orthogonal projection at our convenient axes.
+    let path_point = |v: &Point| point(v[idx0] as f32, v[idx1] as f32);
+
+    // We build a path from the polygon.
+    let v = cycle_iter.next().unwrap();
+    builder.begin(path_point(v));
+
+    for v in cycle_iter {
+        builder.line_to(path_point(v));
+    }
+
+    builder.end(true);
+
+    Some(builder.build())
 }
 
 /// Represents a triangulation of the faces of a [`Concrete`]. It stores the
@@ -121,15 +116,15 @@ impl Triangulation {
         for face in faces {
             // We tesselate this path.
             let cycles = CycleList::from_edges(face.subs.iter().map(|&i| &edges[i].subs));
-            if let Some(paths) = path(&cycles, &polytope.vertices) {
-                for (idx, path) in paths.iter().enumerate() {
+            for cycle in cycles {
+                if let Some(path) = path(&cycle, &polytope.vertices) {
                     let mut geometry: VertexBuffers<_, u32> = VertexBuffers::new();
 
                     // Configures all of the options of the tessellator.
                     FillTessellator::new()
                         .tessellate_with_ids(
                             path.id_iter(),
-                            path,
+                            &path,
                             None,
                             &FillOptions::with_fill_rule(Default::default(), FillRule::NonZero)
                                 .with_tolerance(EPS as f32),
@@ -141,8 +136,8 @@ impl Triangulation {
 
                     // Maps EndpointIds to the indices in the original vertex list.
                     let mut id_to_idx = Vec::new();
-                    for idx in &cycles[idx] {
-                        id_to_idx.push(*idx);
+                    for idx in cycle {
+                        id_to_idx.push(idx);
                     }
 
                     // We map the output vertices to the original ones, and add any
