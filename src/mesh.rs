@@ -30,6 +30,9 @@ pub fn path(cycle: &Cycle, vertices: &[Point]) -> Option<Path> {
 
     // We don't bother with any polygons that aren't in 2D space.
     let s = Subspace::from_points_with(cycle_iter.clone(), 2)?;
+    if s.rank() != 2 {
+        return None
+    }
 
     let mut flat_points = cycle_iter.map(|p| s.flatten(&p));
 
