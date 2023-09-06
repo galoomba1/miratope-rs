@@ -25,59 +25,22 @@ use vec_like::*;
 ///
 /// If the cycle isn't 2D, we return `None`.
 pub fn path(cycle: &Cycle, vertices: &[Point]) -> Option<Path> {
-    let dim = vertices[0].len();
     let mut builder = Path::builder();
-    let mut cycle_iter = cycle.iter().map(|&idx| &vertices[idx]);
+    let cycle_iter = cycle.iter().map(|&idx| &vertices[idx]);
 
     // We don't bother with any polygons that aren't in 2D space.
     let s = Subspace::from_points_with(cycle_iter.clone(), 2)?;
 
-    // We find the two axis directions most convenient for projecting down.
-    // Convenience is measured as the length of an axis vector projected
-    // down onto the plane our cycle lies in.
+    let mut flat_points = cycle_iter.map(|p| s.flatten(&p));
 
-    // The index of the axis vector that gives the largest length when
-    // projected, and that such length.
-    let mut idx0 = 0;
-    let mut len0 = 0.0;
-
-    // The index of the axis vector that gives the second largest length
-    // when projected, and that such length.
-    let mut idx1 = 0;
-    let mut len1 = 0.0;
-
-    // We compute idx0 and idx1 real quick.
-    let mut e = Point::zeros(dim);
-    for i in 0..dim {
-        e[i] = 1.0;
-
-        let len = s.project(&e).norm();
-        // This is the largest length we've found so far.
-        if len > len0 {
-            len1 = len0;
-            idx1 = idx0;
-            len0 = len;
-            idx0 = i;
-        }
-        // This is the second largest length we've found so far.
-        else if len > len1 {
-            len1 = len;
-            idx1 = i;
-        }
-
-        e[i] = 0.0;
-    }
-
-    // Converts a point in the polytope to a point in the path via
-    // orthogonal projection at our convenient axes.
-    let path_point = |v: &Point| point(v[idx0] as f32, v[idx1] as f32);
+    let path_point = |v: &Point| point(v[0] as f32, v[1] as f32);
 
     // We build a path from the polygon.
-    let v = cycle_iter.next().unwrap();
-    builder.begin(path_point(v));
+    let v = flat_points.next().unwrap();
+    builder.begin(path_point(&v));
 
-    for v in cycle_iter {
-        builder.line_to(path_point(v));
+    for v in flat_points {
+        builder.line_to(path_point(&v));
     }
 
     builder.end(true);
