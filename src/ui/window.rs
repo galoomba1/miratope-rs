@@ -449,7 +449,15 @@ pub trait DuoWindow: Window {
                         }
 
                         // Shows the name of the selected polytope.
-                        Some(_) => slot_label(*selected_idx),
+                        Some((_poly, label)) => match label {
+                            None => {
+                                slot_label(*selected_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        }
                     }
                 } else {
                     *selected = Slot::None;
@@ -474,7 +482,7 @@ pub trait DuoWindow: Window {
                     }
 
                     // The polytopes in memory.
-                    for (slot_idx, _) in memory
+                    for (slot_idx, (_poly, label)) in memory
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, s)| s.as_ref().map(|s| (idx, s)))
@@ -482,7 +490,15 @@ pub trait DuoWindow: Window {
                         // This value couldn't be selected by the user.
                         let mut slot_inner = None;
 
-                        ui.selectable_value(&mut slot_inner, Some(slot_idx), slot_label(slot_idx));
+                        ui.selectable_value(&mut slot_inner, Some(slot_idx), match label {
+                            None => {
+                                slot_label(slot_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        });
 
                         // If the value was changed, update it.
                         if let Some(idx) = slot_inner {
@@ -1713,7 +1729,15 @@ impl MemoryWindow for FacetingSettings {
                         }
 
                         // Shows the name of the selected polytope.
-                        Some(_) => slot_label(selected_idx),
+                        Some((_poly, label)) => match label {
+                            None => {
+                                slot_label(selected_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        }
                     }
                 } else {
                     self.slot = Slot::None;
@@ -1739,7 +1763,7 @@ impl MemoryWindow for FacetingSettings {
                     }
 
                     // The polytopes in memory.
-                    for (slot_idx, _) in memory
+                    for (slot_idx, (_poly, label)) in memory
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, s)| s.as_ref().map(|s| (idx, s)))
@@ -1747,7 +1771,15 @@ impl MemoryWindow for FacetingSettings {
                         // This value couldn't be selected by the user.
                         let mut slot_inner = None;
 
-                        ui.selectable_value(&mut slot_inner, Some(slot_idx), slot_label(slot_idx));
+                        ui.selectable_value(&mut slot_inner, Some(slot_idx), match label {
+                            None => {
+                                slot_label(slot_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        });
 
                         // If the value was changed, update it.
                         if let Some(idx) = slot_inner {
