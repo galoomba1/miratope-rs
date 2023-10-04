@@ -104,7 +104,7 @@ fn setup(
     // Mesh material.
     let mesh_material = materials.add(StandardMaterial {
         base_color: Color::rgb_u8(255, 255, 255),
-        metallic: 0.2,
+        metallic: 0.0,
         ..Default::default()
     });
 

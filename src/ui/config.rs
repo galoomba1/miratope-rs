@@ -38,6 +38,8 @@ impl Plugin for ConfigPlugin {
         app.insert_resource(config_path)
             .insert_resource(LibPath::default())
             .insert_resource(config.background_color.clear_color())
+            .insert_resource(config.mesh_color)
+            .insert_resource(config.wf_color)
             .insert_resource(config.light_mode.visuals())
             .add_system(update_visuals.system())
             .add_system_to_stage(CoreStage::Last, save_config.system());
@@ -91,6 +93,26 @@ impl BgColor {
     }
 }
 
+/// The mesh color of the polytope in sRGB.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct MeshColor(pub Color);
+
+impl Default for MeshColor {
+    fn default() -> MeshColor {
+        MeshColor(Color::rgb_u8(255, 255, 255))
+    }
+}
+
+/// The wireframe color of the polytope in sRGB.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WfColor(pub Color);
+
+impl Default for WfColor {
+    fn default() -> WfColor {
+        WfColor(Color::rgb_u8(150, 150, 150))
+    }
+}
+
 /// Whether light mode is turned on or off.
 #[derive(Default, Serialize, Deserialize)]
 pub struct LightMode(bool);
@@ -121,6 +143,12 @@ fn update_visuals(egui_ctx: Res<'_, EguiContext>, visuals: Res<'_, egui::Visuals
 pub struct Config {
     /// The background color of the application.
     pub background_color: BgColor,
+
+    /// The mesh color of the polytope.
+    pub mesh_color: MeshColor,
+
+    /// The wireframe color of the polytope.
+    pub wf_color: WfColor,
 
     /// Whether light mode is enabled.
     pub light_mode: LightMode,
@@ -194,12 +222,16 @@ fn save_config(
     config_path: Res<'_, ConfigPath>,
 
     background_color: Res<'_, ClearColor>,
+    mesh_color: Res<'_, MeshColor>,
+    wf_color: Res<'_, WfColor>,
     visuals: Res<'_, egui::Visuals>,
 ) {
     // If the application is being exited:
     if exit.iter().next().is_some() {
         let config = Config {
             background_color: BgColor::new(background_color.as_ref()),
+            mesh_color: mesh_color.clone(),
+            wf_color: wf_color.clone(),
             light_mode: LightMode(!visuals.dark_mode),
         };
 
