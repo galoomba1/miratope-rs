@@ -914,9 +914,6 @@ pub fn show_top_panel(
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
                 );
-                if let Some(mut p) = query.iter_mut().next() {
-                    p.set_changed();
-                }
             }
 
             // Wireframe color picker.
@@ -940,9 +937,6 @@ pub fn show_top_panel(
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
                 );
-                if let Some(mut p) = query.iter_mut().next() {
-                    p.set_changed();
-                }
             }
 
             // Light/dark mode toggle.

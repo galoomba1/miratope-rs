@@ -38,17 +38,19 @@ pub fn update_visible(
     mut polies_vis: Query<'_, '_, &mut Visible, With<Concrete>>,
     mut wfs_vis: Query<'_, '_, &mut Visible, Without<Concrete>>,
 ) {
-    if keyboard.just_pressed(KeyCode::V) {
-        if let Some(mut visible) = polies_vis.iter_mut().next() {
-            let vis = visible.is_visible;
-            visible.is_visible = !vis;
+    if keyboard.get_pressed().count() == 1 {
+        if keyboard.just_pressed(KeyCode::V) {
+            if let Some(mut visible) = polies_vis.iter_mut().next() {
+                let vis = visible.is_visible;
+                visible.is_visible = !vis;
+            }
         }
-    }
 
-    if keyboard.just_pressed(KeyCode::B) {
-        if let Some(mut visible) = wfs_vis.iter_mut().next() {
-            let vis = visible.is_visible;
-            visible.is_visible = !vis;
+        if keyboard.just_pressed(KeyCode::B) {
+            if let Some(mut visible) = wfs_vis.iter_mut().next() {
+                let vis = visible.is_visible;
+                visible.is_visible = !vis;
+            }
         }
     }
 }
@@ -108,22 +110,19 @@ pub fn update_changed_polytopes(
 
 pub fn update_changed_color(
     mut materials: ResMut<'_, Assets<StandardMaterial>>,
-    mut polies: Query<'_, '_, (&Handle<StandardMaterial>, &Children), Changed<Concrete>>,
-    wfs: Query<'_, '_, &Handle<StandardMaterial>, Without<Concrete>>,
+    mut polies: Query<'_, '_, &Handle<StandardMaterial>, With<Concrete>>,
+    mut wfs: Query<'_, '_, &Handle<StandardMaterial>, Without<Concrete>>,
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
 ) {
-    for (material_handle, children) in polies.iter_mut() {
+    if let Some(material_handle) = polies.iter_mut().next() {
         *materials.get_mut(material_handle).unwrap() = StandardMaterial {
             base_color: mesh_color.0,
             metallic: 0.0,
             ..Default::default()
         };
-
-        for child in children.iter() {
-            if let Ok(wf_handle) = wfs.get_component::<Handle<StandardMaterial>>(*child) {
-                *materials.get_mut(wf_handle).unwrap() = wf_color.0.into()
-            }
-        }
+    }
+    if let Some(wf_handle) = wfs.iter_mut().next() {
+        *materials.get_mut(wf_handle).unwrap() = wf_color.0.into()
     }
 }
