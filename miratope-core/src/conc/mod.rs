@@ -881,7 +881,7 @@ pub trait ConcretePolytope: Polytope {
         let flat_vertices = subspace.flatten_vec(self.vertices());
 
         match flat_vertices.get(0)?.len().cmp(&(rank - 1)) {
-            // Degenerate polytopes have volume 0 if it's orientable.
+            // Degenerate polytopes have volume 0 (if they're orientable).
             std::cmp::Ordering::Less => {
                 if self.orientable() {
                     return Some(0.0)
