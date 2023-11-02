@@ -312,7 +312,6 @@ pub type EguiWindows<'a> = (
     ResMut<'a, FacetingSettings>,
     ResMut<'a, RotateWindow>,
     ResMut<'a, PlaneWindow>,
-    ResMut<'a, WikiWindow>,
 );
 
 macro_rules! element_sort {
@@ -363,7 +362,6 @@ pub fn show_top_panel(
         mut faceting_settings,
         mut rotate_window,
         mut plane_window,
-        mut wiki_window,
     ): EguiWindows<'_>,
 ) {
     // The top bar.
@@ -842,11 +840,6 @@ pub fn show_top_panel(
             }
             memory.show(&mut query, &mut poly_name, &egui_ctx, &mut show_memory.0);
 
-            
-            if ui.add(egui::Button::new("Wiki")).clicked() {
-                wiki_window.open();
-            }
-
             if ui.button("Help").clicked() {
                 show_help.0 = !show_help.0;
             }
@@ -866,8 +859,6 @@ pub fn show_top_panel(
                     ui.heading("Right panel");
                     ui.label("Generate: computes the element types of the loaded polytope\nLoad: loads the polytope whose element types are being listed");
                     ui.separator();
-                    ui.heading("Wiki");
-                    ui.label("Use the checkboxes to choose which fields to generate\nPress Generate to fill in the fields\nPress Ok to generate a copyable page");
                 });
 
             // Background color picker.
