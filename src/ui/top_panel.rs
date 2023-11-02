@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName};
+use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName, config::{MeshColor, WfColor}};
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
@@ -341,7 +341,7 @@ pub fn show_top_panel(
     mut show_memory: ResMut<'_, ShowMemory>,
     mut show_help: ResMut<'_, ShowHelp>,
     mut export_memory: ResMut<'_, ExportMemory>,
-    mut background_color: ResMut<'_, ClearColor>,
+    mut colors: (ResMut<'_, ClearColor>, ResMut<'_, MeshColor>, ResMut<'_, WfColor>),
 
     mut visuals: ResMut<'_, egui::Visuals>,
 
@@ -873,7 +873,7 @@ pub fn show_top_panel(
             // Background color picker.
 
             // The current background color.
-            let [r, g, b, a] = background_color.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.0.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new background color.
@@ -886,7 +886,53 @@ pub fn show_top_panel(
 
             // Updates the background color if necessary.
             if color != new_color {
-                background_color.0 = Color::rgb(
+                colors.0.0 = Color::rgb(
+                    new_color.r() as f32 / 255.0,
+                    new_color.g() as f32 / 255.0,
+                    new_color.b() as f32 / 255.0,
+                );
+            }
+
+            // Mesh color picker.
+
+            // The current mesh color.
+            let [r, g, b, a] = colors.1.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
+
+            // The new mesh color.
+            let mut new_color = color;
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut new_color,
+                egui::color_picker::Alpha::Opaque,
+            );
+
+            // Updates the mesh color if necessary.
+            if color != new_color {
+                colors.1.0 = Color::rgb(
+                    new_color.r() as f32 / 255.0,
+                    new_color.g() as f32 / 255.0,
+                    new_color.b() as f32 / 255.0,
+                );
+            }
+
+            // Wireframe color picker.
+
+            // The current wireframe color.
+            let [r, g, b, a] = colors.2.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
+
+            // The new wireframe color.
+            let mut new_color = color;
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut new_color,
+                egui::color_picker::Alpha::Opaque,
+            );
+
+            // Updates the wireframe color if necessary.
+            if color != new_color {
+                colors.2.0 = Color::rgb(
                     new_color.r() as f32 / 255.0,
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
