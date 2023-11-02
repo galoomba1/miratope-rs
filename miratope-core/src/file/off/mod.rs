@@ -262,13 +262,15 @@ impl<'a> OffReader<'a> {
             el_nums.push(self.iter.parse_next()?);
         }
 
-        // A polygon always has as many vertices as edges.
+        // A polygon always has as many vertices as edges... but only if the polygon is dyadic.
         if rank == 3 {
             el_nums.push(el_nums[0]);
         }
 
         // 2-elements go before 1-elements, we're undoing that.
-        el_nums.swap(1, 2);
+        if rank > 2 {
+            el_nums.swap(1, 2);
+        }
 
         Ok(el_nums)
     }
@@ -413,7 +415,6 @@ impl<'a> OffReader<'a> {
         match rank {
             0 => return Ok(Concrete::nullitope()),
             1 => return Ok(Concrete::point()),
-            2 => return Ok(Concrete::dyad()),
             _ => {}
         }
 
@@ -635,7 +636,7 @@ impl<'a> OffWriter<'a> {
 
             if rank == 3 {
                 self.push_str(", Components");
-            } else {
+            } else if rank > 3 {
                 self.push_str(", Faces, Edges");
 
                 for r in 4..rank {
@@ -715,11 +716,11 @@ impl<'a> OffWriter<'a> {
 
         // Writes the components in the polygonal case.
         if rank == 3 {
-            for component in CycleList::from_edges(self.poly[1].iter().map(|vert| &vert.sups)) {
+            for component in CycleList::from_edges(self.poly[2].iter().map(|edge| &edge.subs)) {
                 self.push_to_str(component.len());
-                for edge in component {
+                for vert in component {
                     self.push(' ');
-                    self.push_to_str(edge);
+                    self.push_to_str(vert);
                 }
                 self.push('\n');
             }

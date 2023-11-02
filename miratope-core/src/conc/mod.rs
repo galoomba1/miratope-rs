@@ -22,8 +22,7 @@ use crate::{
     float::Float,
     geometry::*,
 };
-
-use approx::{abs_diff_eq, abs_diff_ne};
+use approx::abs_diff_eq;
 use partitions::{PartitionVec, partition_vec};
 use rayon::prelude::*;
 use vec_like::*;
@@ -644,37 +643,7 @@ pub trait ConcretePolytope: Polytope {
     /// Calculates the circumsphere of a polytope. Returns `None` if the
     /// polytope isn't circumscribable.
     fn circumsphere(&self) -> Option<Hypersphere<f64>> {
-        let mut vertices = self.vertices().iter();
-
-        let first_vertex = vertices.next()?.clone();
-        let mut center = first_vertex.clone();
-        let mut subspace = Subspace::new(first_vertex.clone());
-
-        for vertex in vertices {
-            // If the new vertex does not lie on the hyperplane of the others:
-            if let Some(basis_vector) = subspace.add(vertex) {
-                // Calculates the new circumcenter.
-                let distance: f64 = ((&center - vertex).norm_squared()
-                    - (&center - &first_vertex).norm_squared())
-                    / (2.0 * (vertex - &first_vertex).dot(basis_vector));
-
-                center += basis_vector * distance;
-            }
-            // If the new vertex lies on the others' hyperplane, but is not at
-            // the correct distance from the first vertex:
-            else if abs_diff_ne!(
-                (&center - &first_vertex).norm(),
-                (&center - vertex).norm(),
-                epsilon = f64::EPS
-            ) {
-                return None;
-            }
-        }
-
-        Some(Hypersphere {
-            squared_radius: (&center - first_vertex).norm_squared(),
-            center,
-        })
+        Hypersphere::circumsphere(self.vertices())
     }
 
     /// Calculates the gravicenter of a polytope, or returns `None` in the case
@@ -912,9 +881,13 @@ pub trait ConcretePolytope: Polytope {
         let flat_vertices = subspace.flatten_vec(self.vertices());
 
         match flat_vertices.get(0)?.len().cmp(&(rank - 1)) {
-            // Degenerate polytopes have volume 0.
+            // Degenerate polytopes have volume 0 if it's orientable.
             std::cmp::Ordering::Less => {
-                return Some(0.0);
+                if self.orientable() {
+                    return Some(0.0)
+                } else {
+                    return None
+                }
             }
             // Skew polytopes don't have a defined volume.
             std::cmp::Ordering::Greater => {
@@ -992,8 +965,8 @@ pub trait ConcretePolytope: Polytope {
 
     /// Slices the polytope through a given plane.
     fn cross_section(&self, slice: &Hyperplane<f64>) -> Self;
-    
-    /// Checks if is fissary.
+  
+	  /// Checks if the polytope is [fissary](https://polytope.miraheze.org/wiki/Fissary).
     fn is_fissary(&self) -> bool;
     
     /// Compounds coplanar facets
@@ -1332,7 +1305,7 @@ impl ConcretePolytope for Concrete {
 
         let mut vertex_coords = Vec::<Point<f64>>::new();
         for subflag in subflags {
-            let mut vector = Point::<f64>::from_vec(vec![0.0; self.rank() - 1]);
+            let mut vector = Point::<f64>::from_vec(vec![0.0; self.dim().unwrap()]);
             for (r, i) in subflag.iter().enumerate() {
                 vector += element_vertices[truncate_type[r] + 1][*i].clone() * depth[truncate_type[r]];
             }
@@ -1342,8 +1315,8 @@ impl ConcretePolytope for Concrete {
 
         Self::new(vertex_coords, abs)
     }
-    
-    /// Checks if is fissary.
+  
+	  /// Checks if the polytope is [fissary](https://polytope.miraheze.org/wiki/Fissary).
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
         

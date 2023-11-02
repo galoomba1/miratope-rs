@@ -440,15 +440,28 @@ pub trait DuoWindow: Window {
                 Slot::Loaded => LOADED_LABEL.to_string(),
 
                 // Something is selected from the memory.
-                Slot::Memory(selected_idx) => match memory[*selected_idx].as_ref() {
-                    // Whatever was previously selected got deleted off the memory.
-                    None => {
-                        *selected = Slot::None;
-                        SELECT.to_string()
-                    }
+                Slot::Memory(selected_idx) => if *selected_idx < memory.len() {
+                    match memory[*selected_idx].as_ref() {
+                        // Whatever was previously selected got deleted off the memory.
+                        None => {
+                            *selected = Slot::None;
+                            SELECT.to_string()
+                        }
 
-                    // Shows the name of the selected polytope.
-                    Some(_) => slot_label(*selected_idx),
+                        // Shows the name of the selected polytope.
+                        Some((_poly, label)) => match label {
+                            None => {
+                                slot_label(*selected_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        }
+                    }
+                } else {
+                    *selected = Slot::None;
+                    SELECT.to_string()
                 },
             };
 
@@ -469,7 +482,7 @@ pub trait DuoWindow: Window {
                     }
 
                     // The polytopes in memory.
-                    for (slot_idx, _) in memory
+                    for (slot_idx, (_poly, label)) in memory
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, s)| s.as_ref().map(|s| (idx, s)))
@@ -477,7 +490,15 @@ pub trait DuoWindow: Window {
                         // This value couldn't be selected by the user.
                         let mut slot_inner = None;
 
-                        ui.selectable_value(&mut slot_inner, Some(slot_idx), slot_label(slot_idx));
+                        ui.selectable_value(&mut slot_inner, Some(slot_idx), match label {
+                            None => {
+                                slot_label(slot_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        });
 
                         // If the value was changed, update it.
                         if let Some(idx) = slot_inner {
@@ -1465,6 +1486,21 @@ impl UpdateWindow for TruncateWindow {
         self.truncate_type = vec![false; dim];
         self.depth = vec![1.0; dim];
     }
+
+    fn update_system(
+        mut self_: ResMut<'_, Self>,
+        query: Query<'_, '_, (&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+    ) where
+        Self: 'static,
+    {
+        if let Some((poly, _, _)) = query.iter().next() {
+            if poly.rank() == 0 {
+                self_.update(0)
+            } else {
+                self_.update(poly.rank() - 1)
+            }
+        }
+    }
 }
 
 /// A window that scales a polytope.
@@ -1684,15 +1720,28 @@ impl MemoryWindow for FacetingSettings {
                 Slot::Loaded => LOADED_LABEL.to_string(),
 
                 // Something is selected from the memory.
-                Slot::Memory(selected_idx) => match memory[selected_idx].as_ref() {
-                    // Whatever was previously selected got deleted off the memory.
-                    None => {
-                        self.slot = Slot::None;
-                        SELECT.to_string()
-                    }
+                Slot::Memory(selected_idx) => if selected_idx < memory.len() {
+                    match memory[selected_idx].as_ref() {
+                        // Whatever was previously selected got deleted off the memory.
+                        None => {
+                            self.slot = Slot::None;
+                            SELECT.to_string()
+                        }
 
-                    // Shows the name of the selected polytope.
-                    Some(_) => slot_label(selected_idx),
+                        // Shows the name of the selected polytope.
+                        Some((_poly, label)) => match label {
+                            None => {
+                                slot_label(selected_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        }
+                    }
+                } else {
+                    self.slot = Slot::None;
+                    SELECT.to_string()
                 },
             };
 
@@ -1714,7 +1763,7 @@ impl MemoryWindow for FacetingSettings {
                     }
 
                     // The polytopes in memory.
-                    for (slot_idx, _) in memory
+                    for (slot_idx, (_poly, label)) in memory
                         .iter()
                         .enumerate()
                         .filter_map(|(idx, s)| s.as_ref().map(|s| (idx, s)))
@@ -1722,7 +1771,15 @@ impl MemoryWindow for FacetingSettings {
                         // This value couldn't be selected by the user.
                         let mut slot_inner = None;
 
-                        ui.selectable_value(&mut slot_inner, Some(slot_idx), slot_label(slot_idx));
+                        ui.selectable_value(&mut slot_inner, Some(slot_idx), match label {
+                            None => {
+                                slot_label(slot_idx)
+                            }
+                            
+                            Some(name) => {
+                                name.to_string()
+                            }
+                        });
 
                         // If the value was changed, update it.
                         if let Some(idx) = slot_inner {

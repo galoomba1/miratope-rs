@@ -6,7 +6,7 @@ use crate::{
     abs::{Abstract, Element, ElementList, Ranked, Ranks, Subelements, Superelements, AbstractBuilder},
     conc::{Concrete, ConcretePolytope},
     float::Float,
-    group::{Group}, geometry::{Matrix, PointOrd, Subspace, Point}, Polytope
+    group::Group, geometry::{Matrix, PointOrd, Subspace, Point}, Polytope
 };
 
 use ordered_float::OrderedFloat;
@@ -1224,7 +1224,7 @@ impl Concrete {
                     let point = &vertices[rep];
 
                     for (idx, vertex) in vertices.iter().enumerate() {
-                        let dot = OrderedFloat(vertex.dot(point));
+                        let dot = OrderedFloat((vertex.dot(point)*1e7).round());
                         if let Some(list) = map.get_mut(&dot) {
                             list.push(idx);
                         } else {
@@ -1236,7 +1236,7 @@ impl Concrete {
 
                     let mut dbg_count: u64 = 0;
 
-                    'd: for (_dot, l) in &map {
+                    for (_dot, l) in &map {
                         let mut list = l.clone();
                         list.sort_unstable();
 
@@ -1248,18 +1248,23 @@ impl Concrete {
                         dbg_count += 1;
 
                         // WLOG checks if the vertices are all the right distance away from the first vertex.
+                        let mut count = 0;
                         for v in &list[1..] {
                             let edge_length = (&vertices[*v]-&vertices[list[0]]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
-                                    continue 'd;
+                                    continue
                                 }
                             }
                             if let Some(max) = max_edge_length {
                                 if edge_length > max + f64::EPS {
-                                    continue 'd;
+                                    continue
                                 }
                             }
+                            count += 1;
+                        }
+                        if count < rank-2 {
+                            continue
                         }
 
                         // We define a hyperplane from the list of vertices.
@@ -1466,12 +1471,12 @@ impl Concrete {
                             let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
                             if let Some(min) = min_inradius {
                                 if inradius < min - f64::EPS {
-                                    break
+                                    continue
                                 }
                             }
                             if let Some(max) = max_inradius {
                                 if inradius > max + f64::EPS {
-                                    break
+                                    continue
                                 }
                             }
                             if exclude_hemis {
