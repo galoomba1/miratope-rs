@@ -4,6 +4,7 @@ pub mod cycle;
 pub mod element_types;
 pub mod faceting;
 pub mod symmetry;
+pub mod wythoff;
 
 use std::{
     collections::{HashMap, HashSet},

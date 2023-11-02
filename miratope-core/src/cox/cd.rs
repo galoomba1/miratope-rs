@@ -321,7 +321,7 @@ impl EdgeRef {
 ///
 /// To actually build a Coxeter diagram, we use a [`CdBuilder`].
 #[derive(Default)]
-pub struct Cd(UnGraph<Node, Edge>);
+pub struct Cd(pub UnGraph<Node, Edge>);
 
 impl Cd {
     /// Initializes a new Coxeter diagram with no nodes nor edges.

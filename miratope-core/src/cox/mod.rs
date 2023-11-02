@@ -169,8 +169,8 @@ impl Cox<f64> {
         Some(mat)
     }
 
-    /// Returns an iterator over the elements of the Coxeter group.
-    pub fn gen_iter(&self) -> Option<GenIter<Matrix<f64>>> {
+    /// Returns the generators of the Coxeter group.
+    pub fn generators(&self) -> Option<Vec<Matrix<f64>>> {
         let normals = self.normals()?;
         let dim = normals.nrows();
 
@@ -186,10 +186,15 @@ impl Cox<f64> {
 
             mat
         };
+        
+        Some(normals.column_iter().map(refl_mat).collect())
+    }
 
+    /// Returns an iterator over the elements of the Coxeter group.
+    pub fn gen_iter(&self) -> Option<GenIter<Matrix<f64>>> {
         Some(GenIter::new(
-            dim,
-            normals.column_iter().map(refl_mat).collect(),
+            self.dim(),
+            self.generators().unwrap(),
         ))
     }
 
