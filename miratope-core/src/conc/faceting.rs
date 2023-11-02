@@ -250,9 +250,9 @@ fn faceting_subdim(
     min_edge_length: Option<f64>,
     max_edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
-	uniform: bool,
+    uniform: bool,
     noble_package: Option<(&Vec<Vec<usize>>, &Vec<usize>, usize)>,
-	print_faceting_count: bool
+    print_faceting_count: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -734,7 +734,7 @@ fn faceting_subdim(
         }
     }
 
-	let mut skipped = 0;
+    let mut skipped = 0;
     'l: while let Some((facets, min_hp, cached_ridge_muls)) = facets_queue.pop_back() {
         if uniform {
             if now.elapsed().as_millis() > DELAY && print_faceting_count {
@@ -834,7 +834,7 @@ fn faceting_subdim(
                 let mut ranks = Ranks::new();
                 ranks.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
                 ranks.push(vec![Element::new(vec![0].into(), vec![].into()); total_vert_count].into()); // vertices
-				
+                
                 let mut ranks2 = Ranks::new();
                 ranks2.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
 
@@ -898,40 +898,40 @@ fn faceting_subdim(
                         new_rank.push(Element::new(el, vec![].into()));
                     }
                     ranks.push(new_rank);
-					
-					if uniform {
-						let mut subs_to_idx = HashMap::new();
-						let mut idx_to_subs = Vec::new();
-						let mut idx = 0;
-						for facet in &facet_vec2 {
-							let els = &facet[r];
-							for el in els {
-								if subs_to_idx.get(&el.subs).is_none() {
-									subs_to_idx.insert(el.subs.clone(), idx);
-									idx_to_subs.push(el.subs.clone());
-									idx += 1;
-								}
-							}
-						}
-						for i in 0..facet_vec2.len() {
-							let mut new_list = ElementList::new();
-							for j in 0..facet_vec2[i][r+1].len() {
-								let mut new = Element::new(Subelements::new(), Superelements::new());
-								for sub in &facet_vec2[i][r+1][j].subs {
-									let sub_subs = &facet_vec2[i][r][*sub].subs;
-									new.subs.push(*subs_to_idx.get(sub_subs).unwrap())
-								}
-								new_list.push(new);
-							}
-							facet_vec2[i][r+1] = new_list;
-						}
+                    
+                    if uniform {
+                        let mut subs_to_idx = HashMap::new();
+                        let mut idx_to_subs = Vec::new();
+                        let mut idx = 0;
+                        for facet in &facet_vec2 {
+                            let els = &facet[r];
+                            for el in els {
+                                if subs_to_idx.get(&el.subs).is_none() {
+                                    subs_to_idx.insert(el.subs.clone(), idx);
+                                    idx_to_subs.push(el.subs.clone());
+                                    idx += 1;
+                                }
+                            }
+                        }
+                        for i in 0..facet_vec2.len() {
+                            let mut new_list = ElementList::new();
+                            for j in 0..facet_vec2[i][r+1].len() {
+                                let mut new = Element::new(Subelements::new(), Superelements::new());
+                                for sub in &facet_vec2[i][r+1][j].subs {
+                                    let sub_subs = &facet_vec2[i][r][*sub].subs;
+                                    new.subs.push(*subs_to_idx.get(sub_subs).unwrap())
+                                }
+                                new_list.push(new);
+                            }
+                            facet_vec2[i][r+1] = new_list;
+                        }
 
-						let mut new_rank = ElementList::new();
-						for el in idx_to_subs {
-							new_rank.push(Element::new(el, vec![].into()));
-						}
-						ranks2.push(new_rank);
-					}
+                        let mut new_rank = ElementList::new();
+                        for el in idx_to_subs {
+                            new_rank.push(Element::new(el, vec![].into()));
+                        }
+                        ranks2.push(new_rank);
+                    }
                 }
                 let mut new_rank = ElementList::new();
                 let mut set = HashSet::new();
@@ -948,24 +948,24 @@ fn faceting_subdim(
                 ranks.push(new_rank); // facets
 
                 ranks.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
-				
-				if uniform {
-					let mut new_rank = ElementList::new();
-					let mut set = HashSet::new();
+                
+                if uniform {
+                    let mut new_rank = ElementList::new();
+                    let mut set = HashSet::new();
 
-					for f_i in 0..facet_vec2.len() {
-						facet_vec2[f_i][rank-1][0].subs.sort();
-						let subs = facet_vec2[f_i][rank-1][0].subs.clone();
-						if !set.contains(&subs) {
-							new_rank.push(Element::new(subs.clone(), Superelements::new()));
-							set.insert(subs);
-						}
-					}
-					let n_r_len = new_rank.len();
-					ranks2.push(new_rank); // facets
+                    for f_i in 0..facet_vec2.len() {
+                        facet_vec2[f_i][rank-1][0].subs.sort();
+                        let subs = facet_vec2[f_i][rank-1][0].subs.clone();
+                        if !set.contains(&subs) {
+                            new_rank.push(Element::new(subs.clone(), Superelements::new()));
+                            set.insert(subs);
+                        }
+                    }
+                    let n_r_len = new_rank.len();
+                    ranks2.push(new_rank); // facets
 
-					ranks2.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
-				}
+                    ranks2.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
+                }
 
                 if uniform {
                     unsafe {
@@ -996,21 +996,21 @@ fn faceting_subdim(
                                 output.push((ranks, new_facets.clone()));
                                 output_facets.push(new_facets.clone());
                             } else {
-								poly.element_sort();
-								let components = poly.defiss();
-								let mut isogonal = true;
-								for component in components {
-									if component.element_types()[1].len() > 1 {
-										isogonal = false;
-										break;
-									}
-								}
-								if isogonal {
-									output.push((ranks, new_facets.clone()));
-									output_facets.push(new_facets.clone());
-								} else {
-									skipped += 1;
-								}
+                                poly.element_sort();
+                                let components = poly.defiss();
+                                let mut isogonal = true;
+                                for component in components {
+                                    if component.element_types()[1].len() > 1 {
+                                        isogonal = false;
+                                        break;
+                                    }
+                                }
+                                if isogonal {
+                                    output.push((ranks, new_facets.clone()));
+                                    output_facets.push(new_facets.clone());
+                                } else {
+                                    skipped += 1;
+                                }
                             }
                         } else {
                             unreachable!();
@@ -1100,7 +1100,7 @@ impl Concrete {
         only_below_vertex: bool,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
-		uniform: bool,
+        uniform: bool,
         include_compounds: bool,
         mark_fissary: bool,
         label_facets: bool,

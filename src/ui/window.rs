@@ -68,8 +68,8 @@ impl Plugin for WindowPlugin {
             .add_plugin(TruncateWindow::plugin())
             .add_plugin(ScaleWindow::plugin())
             .add_plugin(FacetingSettings::plugin())
-			.add_plugin(RotateWindow::plugin())
-			.add_plugin(PlaneWindow::plugin())
+            .add_plugin(RotateWindow::plugin())
+            .add_plugin(PlaneWindow::plugin())
             .add_plugin(WikiWindow::plugin());
     }
 }
@@ -1907,9 +1907,9 @@ pub struct RotateWindow {
 
     /// List of rotations (in radians). Rotates around xy plane, then yz plane, then zw plane, etc.
     rots: Vec<f64>,
-	
-	/// Determines if radians or degrees are used.
-	degcheck: bool,
+    
+    /// Determines if radians or degrees are used.
+    degcheck: bool,
 }
 
 impl Window for RotateWindow {
@@ -1926,60 +1926,62 @@ impl Window for RotateWindow {
 
 impl UpdateWindow for RotateWindow {
     fn action(&self, polytope: &mut Concrete) {
-		if self.rank > 1 {
-			polytope.element_sort();
-			
-			if self.degcheck { //Degrees
-				for ind in 0..self.rank-1 {
-					for v in polytope.vertices_mut() {
-						let theta = self.rots[ind]*0.017453292519943295;
-						
-						let x = v[ind]*theta.cos() - v[ind+1]*theta.sin();
-						let y = v[ind]*theta.sin() + v[ind+1]*theta.cos();
-						v[ind] = x;
-						v[(ind+1)%self.rank] = y;
-					}
-				}
-			}
-			else { //Radians
-				for ind in 0..self.rank-1 {
-					for v in polytope.vertices_mut() {
-						let theta = self.rots[ind];
-						
-						let x = v[ind]*theta.cos() - v[ind+1]*theta.sin();
-						let y = v[ind]*theta.sin() + v[ind+1]*theta.cos();
-						v[ind] = x;
-						v[(ind+1)%self.rank] = y;
-					}
-				}	
-			}
-
-			
-			println!("Object rotated!");
-		}
+        if self.rank > 1 {
+            polytope.element_sort();
+            
+            let mut index = 0;
+            for r in 0..self.rank-1 {
+                for s in (r+1)..=self.rank-1 {
+                    for v in polytope.vertices_mut() {
+                        
+                        let theta: f64;
+                        if self.degcheck { //Degrees
+                            theta = self.rots[index] * 0.017453292519943295;
+                        }
+                        else { //Radians
+                            theta = self.rots[index];
+                        }
+                        
+                        let x = v[r]*theta.cos() - v[s]*theta.sin();
+                        let y = v[r]*theta.sin() + v[s]*theta.cos();
+                        v[r] = x;
+                        v[s] = y;
+                    }
+                    index += 1; //Setting next index value
+                }
+            }
+            
+            println!("Object rotated!");
+        }
         else {
-			println!("Objects with rank less than 2 cannot be rotated.")
-		}
+            println!("Objects with rank less than 2 cannot be rotated.")
+        }
     }
 
     fn name_action(&self, name: &mut String) {
         *name = format!("Rotated {}", name);
     }
-
+    
     fn build(&mut self, ui: &mut Ui) {
+        let mut index = 0;
         ui.add(egui::Checkbox::new(&mut self.degcheck, "Use degrees instead of radians"));
-		for r in 0..self.rank-1 {
-            ui.horizontal(|ui| {
-				if self.degcheck {
-					ui.add(egui::DragValue::new(&mut self.rots[r]).speed(1.0).clamp_range(0.0..=360.0));
-				}
-                else{
-					ui.add(egui::DragValue::new(&mut self.rots[r]).speed(0.01).clamp_range(0.0..=6.283185307179586));
-				}
-            });
+        for r in 0..self.rank-1 {
+            for s in (r+1)..=self.rank-1 {
+                ui.horizontal(|ui| {
+                    if self.degcheck {
+                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(1.0).clamp_range::<f64>(0.0..=360.0));
+                        ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
+                    }
+                    else{
+                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
+                        ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
+                    }
+                    index += 1; //setting index value
+                });
+            }
         }
     }
-	
+    
     fn dim(&self) -> usize {
         self.rank
     }
@@ -1987,14 +1989,14 @@ impl UpdateWindow for RotateWindow {
     fn default_with(dim: usize) -> Self {
         Self {
             rank: dim,
-            rots: vec![0.0001; dim], // if this is set to 0 the whole window becomes dark for some reason
+            rots: vec![0.0001; dim*(dim+1)/2], // if this is set to 0 the whole window becomes dark for some reason
             ..Default::default()
         }
     }
 
     fn update(&mut self, dim: usize) {
         self.rank = dim;
-        self.rots = vec![0.0; dim];
+        self.rots = vec![0.0; dim*(dim+1)/2];
     }
 }
 
@@ -2009,17 +2011,17 @@ pub struct PlaneWindow {
 
     /// Rotation amount (radians).
     rot: f64,
-	
-	/// Coordinates of points.
-	p1: Point,
-	p2: Point,
-	
-	/// Determines if radians or degrees are used.
-	degcheck: bool,
-	
-	//Determines if a custom origin point should be used.
-	origincheck: bool,
-	po: Point,
+    
+    /// Coordinates of points.
+    p1: Point,
+    p2: Point,
+    
+    /// Determines if radians or degrees are used.
+    degcheck: bool,
+    
+    //Determines if a custom origin point should be used.
+    origincheck: bool,
+    po: Point,
 
 }
 
@@ -2027,21 +2029,21 @@ impl Default for PlaneWindow {
     fn default() -> Self {
         Self {
             open: false,
-			rank: Default::default(),
-			
-			rot: 0.0,
-			
+            rank: Default::default(),
+            
+            rot: 0.0,
+            
             p1: Point::zeros(0),
-			p2: Point::zeros(0),
-			
+            p2: Point::zeros(0),
+            
             degcheck: false,
-			
-			origincheck: false,
-			po: Point::zeros(0),
+            
+            origincheck: false,
+            po: Point::zeros(0),
         }
     }
 }
- 
+
 impl Window for PlaneWindow {
     const NAME: &'static str = "Rotate with plane";
 
@@ -2055,91 +2057,101 @@ impl Window for PlaneWindow {
 }
 
 fn dot(u: &Vec<f64>, v: &Vec<f64>) -> f64 {
-	let mut sum = 0.0;
-	for i in 0..u.len() {
-		sum += u[i]*v[i];
-	}
-	return sum
+    let mut sum = 0.0;
+    for i in 0..u.len() {
+        sum += u[i]*v[i];
+    }
+    return sum
 }
 
 impl UpdateWindow for PlaneWindow {
     fn action(&self, polytope: &mut Concrete) {
-		if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
-			println!("Points within plane cannot be located at the origin.");
-		}
-		else if self.rot == 0.0 {
-			println!("Rotated, but the rotation amount was set to 0 so there was no change.");
-		}
-		else {			
-			//Step 0: Make plane of orthonormal basis based on input
-			//Make points p1 and p2 into unit Vec<f64> objects.
-			//Also subtract po from p1 and p2
-			let ss1: f64 = self.p1.iter().map(|&x| x*x).sum();
-			let ss2: f64 = self.p2.iter().map(|&x| x*x).sum();
-			
-			let mut v1: Vec<f64> = Vec::new();
-			let mut v2: Vec<f64> = Vec::new();
-			
-			for i in 0..self.rank {
-				v1.push( (self.p1[i]-self.po[i])/ss1.sqrt() );
-				v2.push( (self.p2[i]-self.po[i])/ss2.sqrt() );
-			}
-			
-			//Implement Gram-Schmidt process to make vectors orthonormal
-			let prod = dot(&v1,&v2)/dot(&v2,&v2);
-			let mut u2: Vec<f64> = Vec::new();
-			for i in 0..self.rank {
-				u2.push(v2[i] - v1[i] * prod);
-			}
-			let ss3: f64 = u2.iter().map(|&x| x*x).sum();
-			
-			for i in 0..self.rank {
-				v2[i] = u2[i]/ss3.sqrt();
-			}
-			
-			let theta: f64;
-			if self.degcheck { //theta is the rotation amount in radians, which may or may not need conversion
-				theta = self.rot * 0.017453292519943295;
-			}
-			else {
-				theta = self.rot;
-			}
-			
-			for v in polytope.vertices_mut() {
-				
-				//Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
-				//Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
-				//From this we find Q in the v1v2 basis. It turns out to equal [v·v1/v1·v1,v·v2/v2·v2].
-				let mut vvec = Vec::new();
-				for i in 0..self.rank {
-					vvec.push( v[i] );
-				}
-				let vf = vec![ dot(&vvec,&v1)/dot(&v1,&v1) , dot(&vvec,&v2)/dot(&v2,&v2) ];
-				
-				//Step 2: Rotate point around plane in basis
-				let mut vr = Point::zeros(2);
-				vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
-				vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
-				
-				//Step 3: Determine non-basis coordinates of rotated point and intersection point
-				let mut vc = Point::zeros(self.rank); //Intersection point
-				let mut vrc = Point::zeros(self.rank); //Rotated point
-				for i in 0..self.rank {
-					vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
-					vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
-				}
-				
-				//Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
-				//new v = vrc + v - vc
-				for i in 0..self.rank {
-					v[i] = vrc[i] + v[i] - vc[i];
-				}
-			}	
-			
-			println!("Rotated!");
-		
-		}
-	
+        if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
+            println!("Points within plane cannot be located at the origin.");
+        }
+        else if self.rot == 0.0 {
+            println!("Rotated, but the rotation amount was set to 0 so there was no change.");
+        }
+        else {			
+            //Step 0: Make plane of orthonormal basis based on input
+            //Subtract po from p1 and p2
+            let mut sub1: Vec<f64> = Vec::new();
+            let mut sub2: Vec<f64> = Vec::new();
+            
+            for i in 0..self.rank {
+                sub1.push( self.p1[i]-self.po[i] );
+                sub2.push( self.p2[i]-self.po[i] );
+            }
+            
+            //Make points sub1 and sub2 into unit Vec<f64> objects.
+            let ss1: f64 = sub1.iter().map(|&x| x*x).sum();
+            let ss2: f64 = sub2.iter().map(|&x| x*x).sum();
+            
+            let mut v1: Vec<f64> = Vec::new();
+            let mut v2: Vec<f64> = Vec::new();
+            
+            for i in 0..self.rank {
+                v1.push( (sub1[i])/ss1.sqrt() );
+                v2.push( (sub2[i]-self.po[i])/ss2.sqrt() );
+            }
+            
+            //Implement Gram-Schmidt process to make vectors orthonormal
+            let prod = dot(&v1,&v2);
+            
+            let mut u2: Vec<f64> = Vec::new();
+            for i in 0..self.rank {
+                u2.push(v2[i] - v1[i] * prod);
+            }
+            let ss3: f64 = u2.iter().map(|&x| x*x).sum();
+            
+            for i in 0..self.rank {
+                v2[i] = u2[i]/ss3.sqrt();
+            }
+            
+            let theta: f64;
+            if self.degcheck { //theta is the rotation amount in radians, which may or may not need conversion
+                theta = self.rot * 0.017453292519943295;
+            }
+            else {
+                theta = self.rot;
+            }
+            
+            for v in polytope.vertices_mut() {
+                
+                //Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
+                //Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
+                //From this we find Q in the v1v2 basis. It turns out to equal [v·v1/v1·v1,v·v2/v2·v2].
+                //Because x·x = 1 for unit vectors x, we can simplify this to [v·v1,v·v2].
+                let mut vvec = Vec::new();
+                for i in 0..self.rank {
+                    vvec.push( v[i] );
+                }
+                let vf = vec![ dot(&vvec,&v1) , dot(&vvec,&v2) ];
+                
+                //Step 2: Rotate point around plane in basis
+                let mut vr = Point::zeros(2);
+                vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
+                vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
+                
+                //Step 3: Determine non-basis coordinates of rotated point and intersection point
+                let mut vc = Point::zeros(self.rank); //Intersection point
+                let mut vrc = Point::zeros(self.rank); //Rotated point
+                for i in 0..self.rank {
+                    vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
+                    vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
+                }
+                
+                //Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
+                //new v = vrc + v - vc
+                for i in 0..self.rank {
+                    v[i] = vrc[i] + v[i] - vc[i];
+                }
+            }
+            
+            println!("Rotated!");
+        
+        }
+    
     }
 
     fn name_action(&self, name: &mut String) {
@@ -2148,32 +2160,32 @@ impl UpdateWindow for PlaneWindow {
 
     fn build(&mut self, ui: &mut Ui) {
         ui.add(egui::Checkbox::new(&mut self.degcheck, "Use degrees instead of radians"));
-		
-		ui.horizontal(|ui| {
-			
-			if self.degcheck {
-			   ui.add(egui::DragValue::new(&mut self.rot).speed(1.0).clamp_range::<f64>(0.0..=360.0));
-			}
-			else{
-				ui.add(egui::DragValue::new(&mut self.rot).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
-			}
-			
-			ui.label("Rotation"); 
+        
+        ui.horizontal(|ui| {
+            
+            if self.degcheck {
+            ui.add(egui::DragValue::new(&mut self.rot).speed(1.0).clamp_range::<f64>(0.0..=360.0));
+            }
+            else{
+                ui.add(egui::DragValue::new(&mut self.rot).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
+            }
+            
+            ui.label("Rotation"); 
         });
-		
-		
-		ui.separator();
-		
-		ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
-		
-		ui.add(PointWidget::new(&mut self.p1, "First point"));
-		ui.add(PointWidget::new(&mut self.p2, "Second point"));
-		if self.origincheck {
-			ui.add(PointWidget::new(&mut self.po, "Origin point"));
-		}
-		
+        
+        
+        ui.separator();
+        
+        ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
+        
+        ui.add(PointWidget::new(&mut self.p1, "First point"));
+        ui.add(PointWidget::new(&mut self.p2, "Second point"));
+        if self.origincheck {
+            ui.add(PointWidget::new(&mut self.po, "Origin point"));
+        }
+        
     }
-	
+    
     fn dim(&self) -> usize {
         self.rank
     }
@@ -2181,10 +2193,10 @@ impl UpdateWindow for PlaneWindow {
     fn default_with(dim: usize) -> Self {
         Self {
             rank: dim,
-			rot: 0.0,
+            rot: 0.0,
             p1: Point::zeros(dim),
-			p2: Point::zeros(dim),
-			po: Point::zeros(dim),
+            p2: Point::zeros(dim),
+            po: Point::zeros(dim),
             ..Default::default()
         }
     }
@@ -2192,8 +2204,8 @@ impl UpdateWindow for PlaneWindow {
     fn update(&mut self, dim: usize) {
         self.rank = dim;
         self.p1 = Point::zeros(dim);
-		self.p2 = Point::zeros(dim);
-		self.po = Point::zeros(dim);
+        self.p2 = Point::zeros(dim);
+        self.po = Point::zeros(dim);
     }
 }
 

@@ -69,25 +69,25 @@ impl SectionState {
         *self = Self::Inactive;
     }
 
-	pub fn add(&mut self) {
-		if let SectionState::Active {
+    pub fn add(&mut self) {
+        if let SectionState::Active {
             hyperplane_pos,
             minmax,
             ..
         } = self {
-			minmax.push((0.0,0.0));
-			hyperplane_pos.push(0.0);
-		}
+            minmax.push((0.0,0.0));
+            hyperplane_pos.push(0.0);
+        }
     }
-	pub fn remove(&mut self) {
-		if let SectionState::Active {
+    pub fn remove(&mut self) {
+        if let SectionState::Active {
             hyperplane_pos,
             minmax,
             ..
         } = self {
-			minmax.pop();
-			hyperplane_pos.pop();
-		}
+            minmax.pop();
+            hyperplane_pos.pop();
+        }
     }
 
     pub fn open(&mut self, original_polytope: Concrete, name: String, minmax: Vec<(f64, f64)>) {
@@ -105,31 +105,31 @@ impl SectionState {
 
 impl Clone for SectionState {
     fn clone(&self) -> Self {
-		if let SectionState::Active{
-				original_polytope,
+        if let SectionState::Active{
+                original_polytope,
                 original_name,
-				minmax,
-				hyperplane_pos,
-				flatten,
-				lock,
+                minmax,
+                hyperplane_pos,
+                flatten,
+                lock,
                 update,
-			} = self{
-				
-			SectionState::Active{
-				original_polytope: original_polytope.clone(),
+            } = self{
+                
+            SectionState::Active{
+                original_polytope: original_polytope.clone(),
                 original_name: original_name.clone(),
-				minmax: minmax.clone(),
-				hyperplane_pos: hyperplane_pos.clone(),
-				flatten: *flatten,
-				lock: *lock,
+                minmax: minmax.clone(),
+                hyperplane_pos: hyperplane_pos.clone(),
+                flatten: *flatten,
+                lock: *lock,
                 update: *update,
-			}
-		}
-		else
-		{
-			SectionState::Inactive
-		}
-	}
+            }
+        }
+        else
+        {
+            SectionState::Inactive
+        }
+    }
 }
 impl Default for SectionState {
     fn default() -> Self {
@@ -310,8 +310,8 @@ pub type EguiWindows<'a> = (
     ResMut<'a, TruncateWindow>,
     ResMut<'a, ScaleWindow>,
     ResMut<'a, FacetingSettings>,
-	ResMut<'a, RotateWindow>,
-	ResMut<'a, PlaneWindow>,
+    ResMut<'a, RotateWindow>,
+    ResMut<'a, PlaneWindow>,
     ResMut<'a, WikiWindow>,
 );
 
@@ -361,8 +361,8 @@ pub fn show_top_panel(
         mut truncate_window,
         mut scale_window,
         mut faceting_settings,
-		mut rotate_window,
-		mut plane_window,
+        mut rotate_window,
+        mut plane_window,
         mut wiki_window,
     ): EguiWindows<'_>,
 ) {
@@ -498,28 +498,28 @@ pub fn show_top_panel(
                         }
                     }
                 }
-				
+                
                 // Gets if it is a compound.
                 if ui.button("Is compound").clicked() {
                     if let Some(mut p) = query.iter_mut().next() {
-						p.element_sort();
+                        p.element_sort();
                         if p.abs.is_compound() {
-							println!("The polytope is a compound.")
-						} else {
-							println!("The polytope is not a compound.")
-						}
+                            println!("The polytope is a compound.")
+                        } else {
+                            println!("The polytope is not a compound.")
+                        }
                     }
                 }
-				
+                
                 // Gets if it is fissary.
                 if ui.button("Is fissary").clicked() {
                     if let Some(mut p) = query.iter_mut().next() {
                         p.element_sort();
                         if p.is_fissary() {
-							println!("The polytope is fissary.")
-						} else {
-							println!("The polytope is not fissary.")
-						}
+                            println!("The polytope is fissary.")
+                        } else {
+                            println!("The polytope is not fissary.")
+                        }
                     }
                 }
             });
@@ -564,19 +564,19 @@ pub fn show_top_panel(
                 if ui.button("Recenter by gravicenter").clicked() {
                     query.iter_mut().next().unwrap().recenter();
                 }
-				
-				ui.separator();
-				
-				// Rotates a polytope around the origin.
-				if ui.button("Rotate...").clicked() {
-					rotate_window.open();
-				}
-				
-				//Rotates a polytope around the origin along a given plane intersecting the origin.
-				if ui.button("Rotate with plane...").clicked() {
-					plane_window.open();
-				}
-				
+                
+                ui.separator();
+                
+                // Rotates a polytope around the origin.
+                if ui.button("Rotate...").clicked() {
+                    rotate_window.open();
+                }
+                
+                //Rotates a polytope around the origin along a given plane intersecting the origin.
+                if ui.button("Rotate with plane...").clicked() {
+                    plane_window.open();
+                }
+                
             });
 
             // Operations on polytopes.
@@ -738,7 +738,7 @@ pub fn show_top_panel(
                 if ui.button("Truncate...").clicked() {
                     truncate_window.open();
                 }
-				
+                
                 ui.separator();
 
                 if ui.button("Identify coplanar facets").clicked() {
@@ -928,50 +928,50 @@ fn show_views(
         // Sets the slider range to the range of x coordinates in the polytope.
         let mut i = 0;
 
-		while i < hyperplane_pos.len() {
-			
-			let mut new_hyperplane_pos = hyperplane_pos[i];
-			ui.add(
-				egui::Slider::new(
-					&mut new_hyperplane_pos,
-					(minmax[i].0 + 0.0000001)..=(minmax[i].1 - 0.0000001), // We do this to avoid empty slices.
-				)
-				.text("Slice depth")
-				.prefix("pos: "),
-			);
+        while i < hyperplane_pos.len() {
+            
+            let mut new_hyperplane_pos = hyperplane_pos[i];
+            ui.add(
+                egui::Slider::new(
+                    &mut new_hyperplane_pos,
+                    (minmax[i].0 + 0.0000001)..=(minmax[i].1 - 0.0000001), // We do this to avoid empty slices.
+                )
+                .text("Slice depth")
+                .prefix("pos: "),
+            );
 
-			// Updates the slicing depth.
-			#[allow(clippy::float_cmp)]
-			if hyperplane_pos[i] != new_hyperplane_pos {
-				if let SectionState::Active { hyperplane_pos, .. } = section_state.as_mut() {
-					hyperplane_pos[i] = new_hyperplane_pos;
-				} else {
-					unreachable!()
-				}
-			}
+            // Updates the slicing depth.
+            #[allow(clippy::float_cmp)]
+            if hyperplane_pos[i] != new_hyperplane_pos {
+                if let SectionState::Active { hyperplane_pos, .. } = section_state.as_mut() {
+                    hyperplane_pos[i] = new_hyperplane_pos;
+                } else {
+                    unreachable!()
+                }
+            }
 
-			let mut new_direction = section_direction[i].0.clone();
+            let mut new_direction = section_direction[i].0.clone();
 
-			ui.horizontal(|ui| {
+            ui.horizontal(|ui| {
 
-				ui.add(UnitPointWidget::new(
-					&mut new_direction,
-					"Slice direction",
-				));
+                ui.add(UnitPointWidget::new(
+                    &mut new_direction,
+                    "Slice direction",
+                ));
 
-				if ui.button("Diagonal").clicked() {
-					new_direction = Point::from_element(new_direction.len(), 1.0/(new_direction.len() as f64).sqrt());
-				}
-			});
-			
-			// Updates the slicing direction.
-			#[allow(clippy::float_cmp)]
-			if section_direction[i].0 != new_direction {
-				section_direction[i].0 = new_direction;
-			}
+                if ui.button("Diagonal").clicked() {
+                    new_direction = Point::from_element(new_direction.len(), 1.0/(new_direction.len() as f64).sqrt());
+                }
+            });
+            
+            // Updates the slicing direction.
+            #[allow(clippy::float_cmp)]
+            if section_direction[i].0 != new_direction {
+                section_direction[i].0 = new_direction;
+            }
 
-			i = i + 1;
-		}
+            i = i + 1;
+        }
 
         ui.horizontal(|ui| {
             // Makes the current cross-section into the main polytope.
@@ -980,7 +980,7 @@ fn show_views(
             }
 
             // Cross sections on a lower dimension
-			if ui.add(egui::Button::new("+").enabled(
+            if ui.add(egui::Button::new("+").enabled(
                 section_direction.len() <
                     if let SectionState::Active {original_polytope, ..} = section_state.clone() {
                         original_polytope.rank()-3
@@ -988,17 +988,17 @@ fn show_views(
                         0
                     }
                 )).clicked() {
-				let p = query.iter_mut().next().unwrap();
-				let dim = p.dim_or();
-				let mut direction = Vector::zeros(dim);
-				if dim > 0 {
-					direction[dim - 1] = 1.0;
-				}
+                let p = query.iter_mut().next().unwrap();
+                let dim = p.dim_or();
+                let mut direction = Vector::zeros(dim);
+                if dim > 0 {
+                    direction[dim - 1] = 1.0;
+                }
                 section_state.add();
-				section_direction.push(SectionDirection{0:direction});
+                section_direction.push(SectionDirection{0:direction});
             }
-			// Cross sections on a higher dimension
-			if ui.add(egui::Button::new("-").enabled(section_direction.len() > 1)).clicked() {
+            // Cross sections on a higher dimension
+            if ui.add(egui::Button::new("-").enabled(section_direction.len() > 1)).clicked() {
                 section_state.remove();
                 section_direction.pop();
             }
@@ -1057,31 +1057,31 @@ fn show_views(
 
             if let Some(mut p) = query.iter_mut().next() {
                 let mut r = original_polytope.clone();
-				let mut i = 0;
+                let mut i = 0;
                 while i < hyperplane_pos.len() {
-					let hyp_pos = hyperplane_pos[i];
+                    let hyp_pos = hyperplane_pos[i];
 
-					if let Some(dim) = r.dim() {
-						let hyperplane = Hyperplane::new(section_direction[i].0.clone(), hyp_pos);
-						minmax[i] = r
-							.minmax(section_direction[i].0.clone())
-							.unwrap_or((-1.0, 1.0));
+                    if let Some(dim) = r.dim() {
+                        let hyperplane = Hyperplane::new(section_direction[i].0.clone(), hyp_pos);
+                        minmax[i] = r
+                            .minmax(section_direction[i].0.clone())
+                            .unwrap_or((-1.0, 1.0));
 
-						minmax[i].0 += f64::EPS;
-						let mut slice = r.cross_section(&hyperplane);
+                        minmax[i].0 += f64::EPS;
+                        let mut slice = r.cross_section(&hyperplane);
 
-						if *flatten {
-							slice.flatten_into(&hyperplane.subspace);
-							slice.recenter_with(
-								&hyperplane.flatten(&hyperplane.project(&Point::zeros(dim))),
-							);
-						}
+                        if *flatten {
+                            slice.flatten_into(&hyperplane.subspace);
+                            slice.recenter_with(
+                                &hyperplane.flatten(&hyperplane.project(&Point::zeros(dim))),
+                            );
+                        }
 
-						r = slice;
-					}
-					i += 1;
-				}
-				*p = r;
+                        r = slice;
+                    }
+                    i += 1;
+                }
+                *p = r;
             }
 
             poly_name.0 = format!("Slice of {}", original_name);

@@ -460,13 +460,13 @@ impl Abstract {
         // write proof].
         (unsafe { builder.build() }, verts_subflags)
     }
-	
-	/// Returns whether a polytope is compound
+    
+    /// Returns whether a polytope is compound
     ///
     /// # Panics
     /// You must call [`Polytope::element_sort`] before calling this method.
     pub fn is_compound(&self) -> bool {
-		let flag_set = FlagSet::new_all(self);
+        let flag_set = FlagSet::new_all(self);
         flag_set.len() != self.flags().count()
     }
 }
