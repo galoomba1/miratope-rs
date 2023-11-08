@@ -128,7 +128,7 @@ impl ElementTypesRes {
 
     fn generate_components(&mut self) {
         self.poly.element_sort();
-        self.components = Some(self.poly.defiss());
+        self.components = Some(self.poly.split());
     }
 }
 

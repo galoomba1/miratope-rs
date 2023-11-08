@@ -307,6 +307,92 @@ impl Polytope for Concrete {
         output
     }
     
+    /// Splits a polytope into components without making them strongly connected.
+    fn split(&self) -> Vec<Concrete> {
+        if self.rank() < 1 {
+            return vec![Concrete::nullitope()];
+        }
+        let mut output = Vec::<Concrete>::new();
+
+        let flags: Vec<Flag> = self.flags().collect();
+        let mut flags_map_back = HashMap::new();
+        for (idx, flag) in flags.iter().enumerate() {
+            flags_map_back.insert(flag, idx);
+        }
+
+        let mut partition: PartitionVec<()> = partition_vec![(); flags.len()];
+
+        for (idx, flag) in flags.iter().enumerate() {
+            for change in 1..self.rank() {
+                let changed_flag = flag.change(&self.abs, change);
+                let changed_idx = flags_map_back.get(&changed_flag).unwrap();
+                
+                partition.union(idx, *changed_idx);
+            }
+        }
+
+        let components = partition.all_sets();
+
+        for component in components {
+            let mut elements = Ranks::with_rank_capacity(self.rank()+1);
+            elements.push(ElementList::from(vec![Element::new(Subelements::new(), Superelements::new())]));
+            for _ in 1..=self.rank() {
+                elements.push(ElementList::new());
+            }
+
+            let mut vertices = Vec::new();
+
+            let mut idx_in_rank = vec![HashMap::<usize, usize>::new(); self.rank()+1];
+            let mut counts = vec![0; self.rank()+1];
+            for (flag_idx, _) in component {
+                let mut sub = 0;
+
+                for rank in 1..=self.rank() {
+                    match idx_in_rank[rank].get(&flags[flag_idx][rank]) {
+                        Some(idx) => {
+                            if !elements[rank][*idx].subs.contains(&sub) {
+                                elements[rank][*idx].subs.push(sub);
+                            }
+
+                            sub = *idx;
+                        }
+                        None => {
+                            idx_in_rank[rank].insert(flags[flag_idx][rank], counts[rank]);
+
+                            elements[rank].push(
+                                Element{
+                                    subs: Subelements::from(vec![sub]),
+                                    sups: Superelements::from(vec![]),
+                                });
+
+                            sub = counts[rank];
+                            if rank == 1 {
+                                vertices.push(self.vertices[flags[flag_idx][1]].clone());
+                            }
+                            counts[rank] += 1;
+                        }
+                    }
+                }
+            }
+            let mut builder = AbstractBuilder::new();
+            for rank in elements {
+                builder.push_empty();
+                for el in rank {
+                    builder.push_subs(el.subs);
+                }
+            }
+            unsafe {
+                if builder.ranks().is_dyadic().is_ok() {
+                    let abs = builder.build();
+                    let conc = Concrete{abs, vertices};
+                    output.push(conc);
+                }
+            }
+        }
+
+        output
+    }
+
     // TODO: A method that builds an omnitruncate together with a map from flags
     // to vertices? We got some math details to figure out.
     fn omnitruncate(&self) -> Self {
