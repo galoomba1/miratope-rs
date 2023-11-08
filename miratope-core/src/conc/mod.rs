@@ -6,7 +6,7 @@ pub mod faceting;
 pub mod symmetry;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, BTreeMap},
     ops::{Index, IndexMut}, iter,
 };
 
@@ -1448,25 +1448,24 @@ impl ConcretePolytope for Concrete {
 
         builder.push_empty();
 
-        let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
-        let mut current = 0 as usize;
+        let mut compound = BTreeMap::<PointOrd<f64>,(usize,Subelements)>::new();
+        let mut current: usize = 0;
         for i in 0..self.facet_count() {
             let temp = self.element(self.rank() - 1, i).unwrap();
             let facetvert = temp.vertices.iter();
             let facet = self.abs.ranks()[self.rank() - 1][i].clone();
             let subspace = Subspace::from_points(facetvert);
             
-            let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
-            contained_vertices.sort();
-            if compound.contains_key(&contained_vertices) {
-                compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
+            let subspace_point = PointOrd::new(subspace.project(&Point::zeros(self.dim().unwrap())));
+            if compound.contains_key(&subspace_point) {
+                compound.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
             } else {
-                compound.insert(contained_vertices,(current,facet.subs.clone()));
+                compound.insert(subspace_point,(current,facet.subs.clone()));
                 current+=1;
             }
         }
         let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
-        compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
+        compound_ordered.sort_unstable_by(|a,b| a.0.cmp(&b.0));
         compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
         
         builder.push_max();
