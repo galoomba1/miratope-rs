@@ -282,6 +282,7 @@ impl Abstract {
         // element.
         for _ in (2..=rank).rev() {
             let mut subelements = SubelementList::new();
+            let mut checked = HashMap::new();
 
             // Gets the subelements of each element.
             for flag_set in flag_sets {
@@ -294,19 +295,17 @@ impl Abstract {
                     // element before.
                     //
                     // TODO: think of something better?
-                    match new_flag_sets
-                        .iter()
-                        .enumerate()
-                        .find(|(_, new_flag_set)| subset == **new_flag_set)
+                    match checked.get(&subset)
                     {
                         // This is a repeat element.
-                        Some((idx, _)) => {
-                            subs.push(idx);
+                        Some(idx) => {
+                            subs.push(*idx);
                         }
 
                         // This is a new element.
                         None => {
                             subs.push(new_flag_sets.len());
+                            checked.insert(subset.clone(), new_flag_sets.len());
                             new_flag_sets.push(subset);
                         }
                     }
@@ -408,9 +407,9 @@ impl Abstract {
                         }
                     }
                 }
-                let mut valid = true;
-                let mut prev = 123456789; // yes violeta idk how to use None or something
-                for j in flag_changes_of_el {
+                let mut prev = flag_changes_of_el[0];
+                let mut valid = cd[prev];
+                for j in flag_changes_of_el.into_iter().skip(1) {
                     // same component
                     if j == prev + 1 {
                         if !valid {
