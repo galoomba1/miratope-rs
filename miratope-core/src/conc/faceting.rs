@@ -263,6 +263,13 @@ fn faceting_subdim(
 
         let mut now = Instant::now();
     if rank == 2 {
+        // Screw it, let's not bother with tetrads.
+        if total_vert_count > 2 {
+            return (
+                vec![], vec![], vec![], HashMap::new()
+            )
+        }
+
         // The only faceting of a dyad is itself.
         // We distinguish between snub and non-snub edges.
 
