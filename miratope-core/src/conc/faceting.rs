@@ -2007,7 +2007,6 @@ impl Concrete {
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
-                    let mut of_this_orbit = HashSet::new();
                     for row in &vertex_map {
                         let mut new_facet = facet.clone();
         
@@ -2019,15 +2018,6 @@ impl Concrete {
                             }
                             new_list.push(new);
                         }
-                        let mut edges = new_list.clone();
-                        for edge in &mut edges {
-                            edge.subs.sort();
-                        }
-                        edges.0.sort_by(|a, b| a.subs.cmp(&b.subs));
-                        if let Some(_) = of_this_orbit.get(&edges) {
-                            continue;
-                        }
-                        of_this_orbit.insert(edges);
                         new_facet[2] = new_list;
 
                         new_facet.element_sort_strong_with_local(facet_local);
