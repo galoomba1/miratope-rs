@@ -1383,10 +1383,10 @@ impl Concrete {
                     let mut checked = HashSet::new();
                     let mut new_tuple_orbits = Vec::new();
 
-                    for tuple in tuple_orbits {
+                    for (idx, tuple) in tuple_orbits.iter().enumerate() {
                         for new_vertex in tuple[tuple.len()-1]..vertices.len() {
                             if now.elapsed().as_millis() > DELAY {
-                                print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
+                                print!("{}{} {}-plane orbits, {}-plane orbit {}", CL, new_tuple_orbits.len(), number-1, number-2, idx);
                                 std::io::stdout().flush().unwrap();
                                 now = Instant::now();
                             }
@@ -1442,7 +1442,7 @@ impl Concrete {
                 // Enumerate hyperplanes
                 let mut checked = HashSet::new();
 
-                for rep in tuple_orbits {
+                for (idx, rep) in tuple_orbits.iter().enumerate() {
                     let last_vert = rep[rep.len()-1];
 
                     for new_vertex in last_vert+1..vertices.len() {
@@ -1450,7 +1450,7 @@ impl Concrete {
                         tuple.push(new_vertex);
 
                         if now.elapsed().as_millis() > DELAY {
-                            print!("{}{} hyperplane orbits, verts {:?}", CL, hyperplane_orbits.len(), tuple);
+                            print!("{}{} hyperplane orbits, {}-plane orbit {}", CL, hyperplane_orbits.len(), rank-3, idx);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
                         }
@@ -1628,6 +1628,12 @@ impl Concrete {
                     let mut r_i_o_row_row = Vec::new();
 
                     for ridge in ridges_row_row {
+                        if now.elapsed().as_millis() > DELAY {
+                            print!("{}{} ridge orbits, hyperplane orbit {}", CL, orbit_idx, hp_i);
+                            std::io::stdout().flush().unwrap();
+                            now = Instant::now();
+                        }
+                        
                         // goes through all the ridges
 
                         // globalize
@@ -1706,73 +1712,46 @@ impl Concrete {
                         }
                         */
 
-                        let mut found = false;
-
-                        for row in &vertex_map {
-                            let mut new_ridge = ridge.clone();
-                        
-                            let mut new_list = ElementList::new();
-                            for i in 0..new_ridge[2].len() {
-                                let mut new = Element::new(Subelements::new(), Superelements::new());
-                                for sub in &ridge[2][i].subs {
-                                    new.subs.push(row[*sub])
-                                }
-                                new_list.push(new);
-                            }
-                            new_ridge[2] = new_list;
-
-                            new_ridge.element_sort_strong();
-                            if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
+                        match ridge_orbits.get(ridge) {
+                            Some(idx) => {
                                 // writes the orbit index at the ridge index
                                 r_i_o_row_row.push(*idx);
-                                found = true;
-                                break
                             }
-                        }
+                            None => {
+                                // adds all ridges with the same orbit to the map
+                                let mut count = 0;
+                                for row in &vertex_map {
+                                    let mut new_ridge = ridge.clone();
 
-                        if !found {
-                            // counts the ridges in the orbit
-                            let mut count = 0;
-                            let mut set = HashSet::new();
-
-                            for row in &vertex_map {
-                                let mut new_ridge = ridge.clone();
-                            
-                                let mut new_list = ElementList::new();
-                                for i in 0..new_ridge[2].len() {
-                                    let mut new = Element::new(Subelements::new(), Superelements::new());
-                                    for sub in &ridge[2][i].subs {
-                                        new.subs.push(row[*sub])
+                                    let mut new_list = ElementList::new();
+                                    for i in 0..new_ridge[2].len() {
+                                        let mut new = Element::new(Subelements::new(), Superelements::new());
+                                        for sub in &ridge[2][i].subs {
+                                            new.subs.push(row[*sub])
+                                        }
+                                        new_list.push(new);
                                     }
-                                    new_list.push(new);
-                                }
-                                new_ridge[2] = new_list;
+                                    new_ridge[2] = new_list;
 
-                                new_ridge.element_sort_strong();
-                                if set.get(&new_ridge).is_none() {
-                                    set.insert(new_ridge);
-                                    count += 1;
+                                    new_ridge.element_sort_strong();
+
+                                    if ridge_orbits.get(&new_ridge).is_none() {
+                                        ridge_orbits.insert(new_ridge, orbit_idx);
+                                        count += 1;
+                                    }
                                 }
-                            }
-                            ridge_orbits.insert(ridge, (orbit_idx, count));
-                            r_i_o_row_row.push(orbit_idx);
-                            ridge_counts.push(count);
-                            orbit_idx += 1;
-                            
-                            if now.elapsed().as_millis() > DELAY {
-                                print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
-                                std::io::stdout().flush().unwrap();
-                                now = Instant::now();
+                                r_i_o_row_row.push(orbit_idx);
+                                ridge_counts.push(count);
+                                orbit_idx += 1;
                             }
                         }
                     }
                     r_i_o_row.push(r_i_o_row_row);
                 }
                 ridge_idx_orbits.push(r_i_o_row);
-
-                print!("{}{}/{} hp, {} ridges", CL, hp_i+1, hyperplane_orbits.len(), ridge_orbits.len());
-                std::io::stdout().flush().unwrap();
             }
+
+            print!("{}{} ridge orbits", CL, orbit_idx);
 
             // Actually do the faceting
             println!("\n\nCombining...");
