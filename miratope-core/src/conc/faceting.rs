@@ -2036,9 +2036,10 @@ impl Concrete {
                         new_facet[2] = new_list;
 
                         new_facet.element_sort_strong_with_local(facet_local);
-                        facet_set.insert(new_facet.clone());
-                        facet_vec.push(new_facet); // have to do this so you can predict the facet index
-                                                // also it makes the facets sorted by type so that's cool
+                        if facet_set.insert(new_facet.clone()) {
+                            facet_vec.push(new_facet); // have to do this so you can predict the facet index
+                                                    // also it makes the facets sorted by type so that's cool
+                        }
                     }
                 }
 
