@@ -655,22 +655,40 @@ fn faceting_subdim(
                     None => {
                         // adds all ridges with the same orbit to the map
                         let mut count = 0;
-                        for row in &vertex_map {
-                            let mut new_ridge = ridge.clone();
+                        let mut checked = HashSet::new();
 
-                            let mut new_list = ElementList::new();
-                            for i in 0..new_ridge[2].len() {
-                                let mut new = Element::new(Subelements::new(), Superelements::new());
-                                for sub in &ridge[2][i].subs {
-                                    new.subs.push(row[*sub])
-                                }
-                                new_list.push(new);
+                        let mut ridge_vertices_idx = HashSet::new();
+                
+                        for edge in &ridge[2] {
+                            for sub in &edge.subs {
+                                ridge_vertices_idx.insert(*sub);
                             }
-                            new_ridge[2] = new_list;
+                        }
 
-                            new_ridge.element_sort_strong();
+                        let mut ridge_vertices = Vec::new();
 
-                            if ridge_orbits.get(&new_ridge).is_none() {
+                        for idx in &ridge_vertices_idx {
+                            ridge_vertices.push(*idx);
+                        }
+
+                        for row in &vertex_map {
+                            let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
+                            new_ridge_vertices.sort_unstable();
+                            if checked.insert(new_ridge_vertices) {
+                                let mut new_ridge = ridge.clone();
+
+                                let mut new_list = ElementList::new();
+                                for i in 0..new_ridge[2].len() {
+                                    let mut new = Element::new(Subelements::new(), Superelements::new());
+                                    for sub in &ridge[2][i].subs {
+                                        new.subs.push(row[*sub])
+                                    }
+                                    new_list.push(new);
+                                }
+                                new_ridge[2] = new_list;
+
+                                new_ridge.element_sort_strong();
+
                                 ridge_orbits.insert(new_ridge, orbit_idx);
                                 count += 1;
                             }
@@ -1720,22 +1738,40 @@ impl Concrete {
                             None => {
                                 // adds all ridges with the same orbit to the map
                                 let mut count = 0;
-                                for row in &vertex_map {
-                                    let mut new_ridge = ridge.clone();
+                                let mut checked = HashSet::new();
 
-                                    let mut new_list = ElementList::new();
-                                    for i in 0..new_ridge[2].len() {
-                                        let mut new = Element::new(Subelements::new(), Superelements::new());
-                                        for sub in &ridge[2][i].subs {
-                                            new.subs.push(row[*sub])
-                                        }
-                                        new_list.push(new);
+                                let mut ridge_vertices_idx = HashSet::new();
+                        
+                                for edge in &ridge[2] {
+                                    for sub in &edge.subs {
+                                        ridge_vertices_idx.insert(*sub);
                                     }
-                                    new_ridge[2] = new_list;
+                                }
+        
+                                let mut ridge_vertices = Vec::new();
+        
+                                for idx in &ridge_vertices_idx {
+                                    ridge_vertices.push(*idx);
+                                }
 
-                                    new_ridge.element_sort_strong();
+                                for row in &vertex_map {
+                                    let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
+                                    new_ridge_vertices.sort_unstable();
+                                    if checked.insert(new_ridge_vertices) {
+                                        let mut new_ridge = ridge.clone();
 
-                                    if ridge_orbits.get(&new_ridge).is_none() {
+                                        let mut new_list = ElementList::new();
+                                        for i in 0..new_ridge[2].len() {
+                                            let mut new = Element::new(Subelements::new(), Superelements::new());
+                                            for sub in &ridge[2][i].subs {
+                                                new.subs.push(row[*sub])
+                                            }
+                                            new_list.push(new);
+                                        }
+                                        new_ridge[2] = new_list;
+
+                                        new_ridge.element_sort_strong();
+
                                         ridge_orbits.insert(new_ridge, orbit_idx);
                                         count += 1;
                                     }
