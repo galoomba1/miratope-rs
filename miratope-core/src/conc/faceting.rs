@@ -2102,15 +2102,10 @@ impl Concrete {
                 }
         
                 let mut new_rank = ElementList::new();
-                let mut set = HashSet::new();
         
                 for f_i in 0..facet_vec.len() {
-                    facet_vec[f_i][rank-1][0].subs.sort();
                     let subs = facet_vec[f_i][rank-1][0].subs.clone();
-                    if !set.contains(&subs) {
-                        new_rank.push(Element::new(subs.clone(), Superelements::new()));
-                        set.insert(subs);
-                    }
+                    new_rank.push(Element::new(subs, Superelements::new()));
                 }
                 let n_r_len = new_rank.len();
                 ranks.push(new_rank); // facets
