@@ -835,21 +835,40 @@ fn faceting_subdim(
                 for facet_orbit in &new_facets {
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
-                    for row in &vertex_map {
-                        let mut new_facet = facet.clone();
-                            
-                        let mut new_list = ElementList::new();
-                        for i in 0..facet[2].len() {
-                            let mut new = Element::new(Subelements::new(), Superelements::new());
-                            for sub in &facet[2][i].subs {
-                                new.subs.push(row[*sub])
-                            }
-                            new_list.push(new);
-                        }
-                        new_facet[2] = new_list;
 
-                        new_facet.element_sort_strong_with_local(facet_local);
-                        facet_set.insert(new_facet);
+                    let mut vertices_set = HashSet::new();
+
+                    for edge in &facet[2] {
+                        for sub in &edge.subs {
+                            vertices_set.insert(sub);
+                        }
+                    }
+
+                    let mut facet_vertices = Vec::new();
+                    for vert in vertices_set {
+                        facet_vertices.push(*vert);
+                    }
+
+                    let mut checked = HashSet::new();
+                    for row in &vertex_map {
+                        let mut new_vertices: Vec<usize> = facet_vertices.iter().map(|v| row[*v]).collect();
+                        new_vertices.sort_unstable();
+                        if checked.insert(new_vertices) {
+                            let mut new_facet = facet.clone();
+                                
+                            let mut new_list = ElementList::new();
+                            for i in 0..facet[2].len() {
+                                let mut new = Element::new(Subelements::new(), Superelements::new());
+                                for sub in &facet[2][i].subs {
+                                    new.subs.push(row[*sub])
+                                }
+                                new_list.push(new);
+                            }
+                            new_facet[2] = new_list;
+
+                            new_facet.element_sort_strong_with_local(facet_local);
+                            facet_set.insert(new_facet);
+                        }
                     }
                 }
 
@@ -1984,7 +2003,6 @@ impl Concrete {
                     continue
                 }
 
-                let mut facet_set = HashSet::new();
                 let mut used_facets_current = Vec::new();
                 let mut facet_vec = Vec::new();
 
@@ -2012,27 +2030,44 @@ impl Concrete {
                 for facet_orbit in facets.clone() {
                     if save_facets {
                         if used_facets.get(&facet_orbit).is_none() {
-                            used_facets_current.push((facet_orbit, facet_set.len()));
+                            used_facets_current.push((facet_orbit, facet_vec.len()));
                         }
                     }
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
-                    for row in &vertex_map {
-                        let mut new_facet = facet.clone();
-        
-                        let mut new_list = ElementList::new();
-                        for i in 0..new_facet[2].len() {
-                            let mut new = Element::new(Subelements::new(), Superelements::new());
-                            for sub in &new_facet[2][i].subs {
-                                new.subs.push(row[*sub])
-                            }
-                            new_list.push(new);
-                        }
-                        new_facet[2] = new_list;
+                    let mut vertices_set = HashSet::new();
 
-                        new_facet.element_sort_strong_with_local(facet_local);
-                        if facet_set.insert(new_facet.clone()) {
+                    for edge in &facet[2] {
+                        for sub in &edge.subs {
+                            vertices_set.insert(sub);
+                        }
+                    }
+
+                    let mut facet_vertices = Vec::new();
+                    for vert in vertices_set {
+                        facet_vertices.push(*vert);
+                    }
+
+                    let mut checked = HashSet::new();
+                    for row in &vertex_map {
+                        let mut new_vertices: Vec<usize> = facet_vertices.iter().map(|v| row[*v]).collect();
+                        new_vertices.sort_unstable();
+                        if checked.insert(new_vertices) {
+
+                            let mut new_facet = facet.clone();
+            
+                            let mut new_list = ElementList::new();
+                            for i in 0..new_facet[2].len() {
+                                let mut new = Element::new(Subelements::new(), Superelements::new());
+                                for sub in &new_facet[2][i].subs {
+                                    new.subs.push(row[*sub])
+                                }
+                                new_list.push(new);
+                            }
+                            new_facet[2] = new_list;
+
+                            new_facet.element_sort_strong_with_local(facet_local);
                             facet_vec.push(new_facet); // have to do this so you can predict the facet index
                                                     // also it makes the facets sorted by type so that's cool
                         }
