@@ -892,7 +892,6 @@ fn faceting_subdim(
 
                 for r in 2..rank-1 { // edges and up
                     let mut subs_to_idx = HashMap::new();
-                    let mut idx_to_subs = Vec::new();
                     let mut idx = 0;
 
                     for facet in &facet_vec {
@@ -900,7 +899,6 @@ fn faceting_subdim(
                         for el in els {
                             if subs_to_idx.get(&el.subs).is_none() {
                                 subs_to_idx.insert(el.subs.clone(), idx);
-                                idx_to_subs.push(el.subs.clone());
                                 idx += 1;
                             }
                         }
@@ -918,22 +916,20 @@ fn faceting_subdim(
                         facet_vec[i][r+1] = new_list;
                     }
 
-                    let mut new_rank = ElementList::new();
-                    for el in idx_to_subs {
-                        new_rank.push(Element::new(el, vec![].into()));
+                    let mut new_rank = ElementList(vec![Element::new(vec![].into(), vec![].into()); subs_to_idx.len()]);
+                    for el in subs_to_idx {
+                        new_rank[el.1] = Element::new(el.0, vec![].into());
                     }
                     ranks.push(new_rank);
                     
                     if uniform {
                         let mut subs_to_idx = HashMap::new();
-                        let mut idx_to_subs = Vec::new();
                         let mut idx = 0;
                         for facet in &facet_vec2 {
                             let els = &facet[r];
                             for el in els {
                                 if subs_to_idx.get(&el.subs).is_none() {
                                     subs_to_idx.insert(el.subs.clone(), idx);
-                                    idx_to_subs.push(el.subs.clone());
                                     idx += 1;
                                 }
                             }
@@ -951,9 +947,9 @@ fn faceting_subdim(
                             facet_vec2[i][r+1] = new_list;
                         }
 
-                        let mut new_rank = ElementList::new();
-                        for el in idx_to_subs {
-                            new_rank.push(Element::new(el, vec![].into()));
+                        let mut new_rank = ElementList(vec![Element::new(vec![].into(), vec![].into()); subs_to_idx.len()]);
+                        for el in subs_to_idx {
+                            new_rank[el.1] = Element::new(el.0, vec![].into());
                         }
                         ranks2.push(new_rank);
                     }
@@ -2075,7 +2071,6 @@ impl Concrete {
 
                 for r in 2..rank-1 { // edges and up
                     let mut subs_to_idx = HashMap::new();
-                    let mut idx_to_subs = Vec::new();
                     let mut idx = 0;
         
                     for facet in &facet_vec {
@@ -2083,7 +2078,6 @@ impl Concrete {
                         for el in els {
                             if subs_to_idx.get(&el.subs).is_none() {
                                 subs_to_idx.insert(el.subs.clone(), idx);
-                                idx_to_subs.push(el.subs.clone());
                                 idx += 1;
                             }
                         }
@@ -2100,9 +2094,9 @@ impl Concrete {
                         }
                         facet_vec[i][r+1] = new_list;
                     }
-                    let mut new_rank = ElementList::new();
-                    for el in idx_to_subs {
-                        new_rank.push(Element::new(el, vec![].into()));
+                    let mut new_rank = ElementList(vec![Element::new(vec![].into(), vec![].into()); subs_to_idx.len()]);
+                    for el in subs_to_idx {
+                        new_rank[el.1] = Element::new(el.0, vec![].into());
                     }
                     ranks.push(new_rank);
                 }
