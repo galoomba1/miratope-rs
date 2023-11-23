@@ -2107,10 +2107,9 @@ impl Concrete {
                     let subs = facet_vec[f_i][rank-1][0].subs.clone();
                     new_rank.push(Element::new(subs, Superelements::new()));
                 }
-                let n_r_len = new_rank.len();
                 ranks.push(new_rank); // facets
         
-                ranks.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
+                ranks.push(vec![Element::new(Subelements::from_iter(0..facet_vec.len()), Superelements::new())].into()); // body
         
                 unsafe {
                     let mut builder = AbstractBuilder::new();
