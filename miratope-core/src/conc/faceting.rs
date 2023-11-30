@@ -1531,7 +1531,6 @@ impl Concrete {
                                     hyperplane_vertices.push(idx);
                                 }
                             }
-                            hyperplane_vertices.sort_unstable();
 
                             // Check if the hyperplane has been found already.
                             let mut is_new = true;
