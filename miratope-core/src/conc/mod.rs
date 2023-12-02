@@ -1449,22 +1449,33 @@ impl ConcretePolytope for Concrete {
         builder.push_empty();
 
         let mut compound = BTreeMap::<PointOrd<f64>,(usize,Subelements)>::new();
+        let mut compound_hemi = HashMap::<Vec<usize>,(usize,Subelements)>::new();
         let mut current: usize = 0;
         for i in 0..self.facet_count() {
             let temp = self.element(self.rank() - 1, i).unwrap();
             let facetvert = temp.vertices.iter();
             let facet = self.abs.ranks()[self.rank() - 1][i].clone();
             let subspace = Subspace::from_points(facetvert);
-            
-            let subspace_point = PointOrd::new(subspace.project(&Point::zeros(self.dim().unwrap())));
-            if compound.contains_key(&subspace_point) {
-                compound.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
+
+            if subspace.is_outer(&Point::zeros(self.dim().unwrap())) {
+                let subspace_point = self.vertices.iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
+                if compound_hemi.contains_key(&subspace_point) {
+                    compound_hemi.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
+                } else {
+                    compound_hemi.insert(subspace_point,(current,facet.subs.clone()));
+                    current+=1;
+                }
             } else {
-                compound.insert(subspace_point,(current,facet.subs.clone()));
-                current+=1;
+                let subspace_point = PointOrd::new(subspace.project(&Point::zeros(self.dim().unwrap())));
+                if compound.contains_key(&subspace_point) {
+                    compound.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
+                } else {
+                    compound.insert(subspace_point,(current,facet.subs.clone()));
+                    current+=1;
+                }
             }
         }
-        let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
+        let mut compound_ordered = compound.iter().map(|x| x.1).chain(compound_hemi.iter().map(|x| x.1)).collect::<Vec<&(usize,Subelements)>>();
         compound_ordered.sort_unstable_by(|a,b| a.0.cmp(&b.0));
         compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
         
