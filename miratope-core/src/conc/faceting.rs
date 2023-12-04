@@ -836,22 +836,9 @@ fn faceting_subdim(
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
-                    let mut vertices_set = HashSet::new();
-
-                    for edge in &facet[2] {
-                        for sub in &edge.subs {
-                            vertices_set.insert(sub);
-                        }
-                    }
-
-                    let mut facet_vertices = Vec::new();
-                    for vert in vertices_set {
-                        facet_vertices.push(*vert);
-                    }
-
                     let mut checked = HashSet::new();
                     for row in &vertex_map {
-                        let mut new_vertices: Vec<usize> = facet_vertices.iter().map(|v| row[*v]).collect();
+                        let mut new_vertices: Vec<usize> = hyperplanes_vertices[facet_orbit.0][0].iter().map(|v| row[*v]).collect();
                         new_vertices.sort_unstable();
                         if checked.insert(new_vertices) {
                             let mut new_facet = facet.clone();
@@ -2035,22 +2022,9 @@ impl Concrete {
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
-                    let mut vertices_set = HashSet::new();
-
-                    for edge in &facet[2] {
-                        for sub in &edge.subs {
-                            vertices_set.insert(sub);
-                        }
-                    }
-
-                    let mut facet_vertices = Vec::new();
-                    for vert in vertices_set {
-                        facet_vertices.push(*vert);
-                    }
-
                     let mut checked = HashSet::new();
                     for row in &vertex_map {
-                        let mut new_vertices: Vec<usize> = facet_vertices.iter().map(|v| row[*v]).collect();
+                        let mut new_vertices: Vec<usize> = hyperplane_orbits[facet_orbit.0].1.iter().map(|v| row[*v]).collect();
                         new_vertices.sort_unstable();
                         if checked.insert(new_vertices) {
 
@@ -2097,11 +2071,7 @@ impl Concrete {
                     }
                     facet_vec[i][2] = new_list;
                 }
-                let mut new_rank = ElementList::new();
-                for _i in 0..idx {
-                    new_rank.push(Element::new(vec![0].into(), vec![].into()));
-                }
-                ranks.push(new_rank);
+                ranks.push(vec![Element::new(vec![0].into(), vec![].into()); idx].into());
 
                 for r in 2..rank-1 { // edges and up
                     let mut subs_to_idx = HashMap::new();
