@@ -623,6 +623,7 @@ fn faceting_subdim(
     let mut ridge_orbits = HashMap::new();
     let mut ridge_counts = Vec::new(); // Counts the number of ridges in each orbit
     let mut orbit_idx = 0;
+    let mut checked_vertices = HashSet::new();
 
     let mut hp_i = 0; // idk why i have to do this, thanks rust
     for ridges_row in ridges {
@@ -647,56 +648,57 @@ fn faceting_subdim(
 
                 ridge.element_sort_strong();
 
-                match ridge_orbits.get(&ridge) {
-                    Some(idx) => {
-                        // writes the orbit index at the ridge index
-                        r_i_o_row_row.push(*idx);
+                let mut ridge_vertices_idx = HashSet::new();
+                            
+                for edge in &ridge[2] {
+                    for sub in &edge.subs {
+                        ridge_vertices_idx.insert(*sub);
                     }
-                    None => {
-                        // adds all ridges with the same orbit to the map
-                        let mut count = 0;
-                        let mut checked = HashSet::new();
+                }
 
-                        let mut ridge_vertices_idx = HashSet::new();
-                
-                        for edge in &ridge[2] {
-                            for sub in &edge.subs {
-                                ridge_vertices_idx.insert(*sub);
+                let mut ridge_vertices = Vec::new();
+
+                for idx in &ridge_vertices_idx {
+                    ridge_vertices.push(*idx);
+                }
+
+                ridge_vertices.sort_unstable();
+
+                let mut found = false;
+                let mut counting = HashSet::new();
+                for row in &vertex_map {
+                    let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
+                    new_ridge_vertices.sort_unstable();
+                    if checked_vertices.contains(&new_ridge_vertices) {
+                        let mut new_ridge = ridge.clone();
+
+                        let mut new_list = ElementList::new();
+                        for i in 0..new_ridge[2].len() {
+                            let mut new = Element::new(Subelements::new(), Superelements::new());
+                            for sub in &ridge[2][i].subs {
+                                new.subs.push(row[*sub])
                             }
+                            new_list.push(new);
                         }
+                        new_ridge[2] = new_list;
 
-                        let mut ridge_vertices = Vec::new();
+                        new_ridge.element_sort_strong();
 
-                        for idx in &ridge_vertices_idx {
-                            ridge_vertices.push(*idx);
+                        if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
+                            // writes the orbit index at the ridge index
+                            r_i_o_row_row.push(*idx);
+                            found = true;
+                            break
                         }
-
-                        for row in &vertex_map {
-                            let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
-                            new_ridge_vertices.sort_unstable();
-                            if checked.insert(new_ridge_vertices) {
-                                let mut new_ridge = ridge.clone();
-
-                                let mut new_list = ElementList::new();
-                                for i in 0..new_ridge[2].len() {
-                                    let mut new = Element::new(Subelements::new(), Superelements::new());
-                                    for sub in &ridge[2][i].subs {
-                                        new.subs.push(row[*sub])
-                                    }
-                                    new_list.push(new);
-                                }
-                                new_ridge[2] = new_list;
-
-                                new_ridge.element_sort_strong();
-
-                                ridge_orbits.insert(new_ridge, orbit_idx);
-                                count += 1;
-                            }
-                        }
-                        r_i_o_row_row.push(orbit_idx);
-                        ridge_counts.push(count);
-                        orbit_idx += 1;
                     }
+                    counting.insert(new_ridge_vertices);
+                }
+                if !found {
+                    ridge_orbits.insert(ridge, (orbit_idx, counting.len()));
+                    checked_vertices.insert(ridge_vertices);
+                    r_i_o_row_row.push(orbit_idx);
+                    ridge_counts.push(counting.len());
+                    orbit_idx += 1;
                 }
             }
             r_i_o_row.push(r_i_o_row_row);
@@ -831,7 +833,7 @@ fn faceting_subdim(
 
                 // Output the faceted polytope. We will build it from the set of its facets.
 
-                let mut facet_set = HashSet::new();
+                let mut facet_vec = Vec::new();
                 for facet_orbit in &new_facets {
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
                     let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
@@ -854,12 +856,10 @@ fn faceting_subdim(
                             new_facet[2] = new_list;
 
                             new_facet.element_sort_strong_with_local(facet_local);
-                            facet_set.insert(new_facet);
+                            facet_vec.push(new_facet);
                         }
                     }
                 }
-
-                let mut facet_vec = Vec::from_iter(facet_set);
 
                 let mut ranks = Ranks::new();
                 ranks.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
@@ -898,15 +898,10 @@ fn faceting_subdim(
                     ranks.push(new_rank);
                 }
                 let mut new_rank = ElementList::new();
-                let mut set = HashSet::new();
 
                 for f_i in 0..facet_vec.len() {
-                    facet_vec[f_i][rank-1][0].subs.sort();
                     let subs = facet_vec[f_i][rank-1][0].subs.clone();
-                    if !set.contains(&subs) {
-                        new_rank.push(Element::new(subs.clone(), Superelements::new()));
-                        set.insert(subs);
-                    }
+                    new_rank.push(Element::new(subs, Superelements::new()));
                 }
                 let n_r_len = new_rank.len();
                 ranks.push(new_rank); // facets
@@ -1580,6 +1575,7 @@ impl Concrete {
             let mut ridge_orbits = HashMap::new();
             let mut ridge_counts = Vec::new(); // Counts the number of ridges in each orbit
             let mut orbit_idx = 0;
+            let mut checked_vertices = HashSet::new();
 
             for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
                 let mut r_i_o_row = Vec::new();
@@ -1672,56 +1668,57 @@ impl Concrete {
                         }
                         */
 
-                        match ridge_orbits.get(ridge) {
-                            Some(idx) => {
-                                // writes the orbit index at the ridge index
-                                r_i_o_row_row.push(*idx);
+                        let mut ridge_vertices_idx = HashSet::new();
+                            
+                        for edge in &ridge[2] {
+                            for sub in &edge.subs {
+                                ridge_vertices_idx.insert(*sub);
                             }
-                            None => {
-                                // adds all ridges with the same orbit to the map
-                                let mut count = 0;
-                                let mut checked = HashSet::new();
+                        }
 
-                                let mut ridge_vertices_idx = HashSet::new();
-                        
-                                for edge in &ridge[2] {
-                                    for sub in &edge.subs {
-                                        ridge_vertices_idx.insert(*sub);
+                        let mut ridge_vertices = Vec::new();
+
+                        for idx in &ridge_vertices_idx {
+                            ridge_vertices.push(*idx);
+                        }
+
+                        ridge_vertices.sort_unstable();
+
+                        let mut found = false;
+                        let mut counting = HashSet::new();
+                        for row in &vertex_map {
+                            let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
+                            new_ridge_vertices.sort_unstable();
+                            if checked_vertices.contains(&new_ridge_vertices) {
+                                let mut new_ridge = ridge.clone();
+
+                                let mut new_list = ElementList::new();
+                                for i in 0..new_ridge[2].len() {
+                                    let mut new = Element::new(Subelements::new(), Superelements::new());
+                                    for sub in &ridge[2][i].subs {
+                                        new.subs.push(row[*sub])
                                     }
+                                    new_list.push(new);
                                 }
-        
-                                let mut ridge_vertices = Vec::new();
-        
-                                for idx in &ridge_vertices_idx {
-                                    ridge_vertices.push(*idx);
+                                new_ridge[2] = new_list;
+
+                                new_ridge.element_sort_strong();
+
+                                if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
+                                    // writes the orbit index at the ridge index
+                                    r_i_o_row_row.push(*idx);
+                                    found = true;
+                                    break
                                 }
-
-                                for row in &vertex_map {
-                                    let mut new_ridge_vertices: Vec<usize> = ridge_vertices.iter().map(|v| row[*v]).collect();
-                                    new_ridge_vertices.sort_unstable();
-                                    if checked.insert(new_ridge_vertices) {
-                                        let mut new_ridge = ridge.clone();
-
-                                        let mut new_list = ElementList::new();
-                                        for i in 0..new_ridge[2].len() {
-                                            let mut new = Element::new(Subelements::new(), Superelements::new());
-                                            for sub in &ridge[2][i].subs {
-                                                new.subs.push(row[*sub])
-                                            }
-                                            new_list.push(new);
-                                        }
-                                        new_ridge[2] = new_list;
-
-                                        new_ridge.element_sort_strong();
-
-                                        ridge_orbits.insert(new_ridge, orbit_idx);
-                                        count += 1;
-                                    }
-                                }
-                                r_i_o_row_row.push(orbit_idx);
-                                ridge_counts.push(count);
-                                orbit_idx += 1;
                             }
+                            counting.insert(new_ridge_vertices);
+                        }
+                        if !found {
+                            ridge_orbits.insert(ridge, (orbit_idx, counting.len()));
+                            checked_vertices.insert(ridge_vertices);
+                            r_i_o_row_row.push(orbit_idx);
+                            ridge_counts.push(counting.len());
+                            orbit_idx += 1;
                         }
                     }
                     r_i_o_row.push(r_i_o_row_row);
