@@ -1375,9 +1375,7 @@ impl ConcretePolytope for Concrete {
 
         // Safety: TODO shit, this one's complicated... I'll come back to it.
         unsafe {
-            let mut abs = builder.build();
-            abs.untangle_faces();
-            Self::new(vertices, abs)
+            Self::new(vertices, builder.build())
         }
     }
 
