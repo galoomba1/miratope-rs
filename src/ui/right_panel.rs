@@ -253,7 +253,7 @@ pub fn show_right_panel(
                                     }
                                 }
 
-                                if let SectionState::Active{..} = section_state.clone() {
+                                if let SectionState::Active{..} = *section_state {
                                     if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {

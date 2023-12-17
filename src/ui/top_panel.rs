@@ -54,9 +54,6 @@ pub enum SectionState {
 
         /// Whether we're not updating the cross-section.
         lock: bool,
-
-        /// Whether to update the polytope. This is a bodge.
-        update: bool,
     },
 
     /// The view is inactive.
@@ -98,7 +95,6 @@ impl SectionState {
             hyperplane_pos: minmax.clone().into_iter().map(|m| (m.0 + m.1) / 2.0).collect(),
             flatten: true,
             lock: false,
-            update: false,
         }
     }
 }
@@ -112,7 +108,6 @@ impl Clone for SectionState {
                 hyperplane_pos,
                 flatten,
                 lock,
-                update,
             } = self{
                 
             SectionState::Active{
@@ -122,7 +117,6 @@ impl Clone for SectionState {
                 hyperplane_pos: hyperplane_pos.clone(),
                 flatten: *flatten,
                 lock: *lock,
-                update: *update,
             }
         }
         else
@@ -957,8 +951,13 @@ fn show_views(
         flatten,
         lock,
         ..
-    } = (*section_state).clone()
+    } = &(*section_state)
     {
+        let minmax = minmax.clone();
+        let hyperplane_pos = hyperplane_pos.clone();
+        let flatten = flatten.clone();
+        let lock = lock.clone();
+
         ui.label("Cross section settings:");
         ui.spacing_mut().slider_width = ui.available_width() / 3.0;
 
@@ -1019,7 +1018,7 @@ fn show_views(
             // Cross sections on a lower dimension
             if ui.add(egui::Button::new("+").enabled(
                 section_direction.len() <
-                    if let SectionState::Active {original_polytope, ..} = section_state.clone() {
+                    if let SectionState::Active {original_polytope, ..} = &*section_state {
                         original_polytope.rank()-3
                     } else {
                         0
@@ -1066,15 +1065,6 @@ fn show_views(
         });
     }
 
-    if section_direction.is_changed() {
-        if let SectionState::Active {
-            update,
-            ..
-        } = section_state.as_mut() {
-            *update = true; // Force an update of the polytope.
-        }
-    }
-
     if section_state.is_changed() {
         if let SectionState::Active {
             original_polytope,
@@ -1083,9 +1073,7 @@ fn show_views(
             minmax,
             flatten,
             lock,
-            update,
         } = section_state.as_mut() {
-            *update = false;
 
             // We don't update the view if it's locked.
             if *lock {
