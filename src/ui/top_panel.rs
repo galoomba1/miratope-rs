@@ -312,6 +312,7 @@ pub type EguiWindows<'a> = (
     ResMut<'a, FacetingSettings>,
     ResMut<'a, RotateWindow>,
     ResMut<'a, PlaneWindow>,
+    ResMut<'a, TranslateWindow>,
 );
 
 macro_rules! element_sort {
@@ -362,6 +363,7 @@ pub fn show_top_panel(
         mut faceting_settings,
         mut rotate_window,
         mut plane_window,
+        mut translate_window,
     ): EguiWindows<'_>,
 ) {
     // The top bar.
@@ -565,6 +567,11 @@ pub fn show_top_panel(
                 
                 ui.separator();
                 
+                //Translates a polytope by a vector.
+                if ui.button("Translate...").clicked() {
+                    translate_window.open();
+                }
+
                 // Rotates a polytope around the origin.
                 if ui.button("Rotate...").clicked() {
                     rotate_window.open();

@@ -57,7 +57,8 @@ impl Plugin for WindowPlugin {
             .add_plugin(ScaleWindow::plugin())
             .add_plugin(FacetingSettings::plugin())
             .add_plugin(RotateWindow::plugin())
-            .add_plugin(PlaneWindow::plugin());
+            .add_plugin(PlaneWindow::plugin())
+            .add_plugin(TranslateWindow::plugin());
     }
 }
 
@@ -2193,5 +2194,76 @@ impl UpdateWindow for PlaneWindow {
         self.p1 = Point::zeros(dim);
         self.p2 = Point::zeros(dim);
         self.po = Point::zeros(dim);
+    }
+}
+
+// Translation window
+pub struct TranslateWindow {
+    /// Whether the window is open
+    open: bool,
+
+    /// The rank of the polytope.
+    rank: usize,
+    
+    /// List of translations.
+    mov: Point,
+}
+
+impl Default for TranslateWindow {
+    fn default() -> Self {
+        Self {
+            open: false,
+            rank: Default::default(),
+            mov: Point::zeros(0),
+        }
+    }
+}
+
+impl Window for TranslateWindow {
+    const NAME: &'static str = "Translate";
+
+    fn is_open(&self) -> bool {
+        self.open
+    }
+
+    fn is_open_mut(&mut self) -> &mut bool {
+        &mut self.open
+    }
+}
+
+impl UpdateWindow for TranslateWindow {
+    fn action(&self, polytope: &mut Concrete) {
+        for v in polytope.vertices_mut() {
+            for i in 0..self.rank { //Translate vertex based on mov
+                v[i] = v[i] + self.mov[i];
+            }
+        }
+        
+        println!("Translated!");
+    }
+
+    fn name_action(&self, name: &mut String) {
+        *name = format!("{}", name);
+    }
+    
+    fn build(&mut self, ui: &mut Ui) {
+        ui.add(PointWidget::new(&mut self.mov, "Translation vector"));
+    }
+    
+    fn dim(&self) -> usize {
+        self.rank
+    }
+
+    fn default_with(dim: usize) -> Self {
+        Self {
+            rank: dim,
+            mov: Point::zeros(dim),
+            ..Default::default()
+        }
+    }
+
+    fn update(&mut self, dim: usize) {
+        self.rank = dim;
+        self.mov = Point::zeros(dim);
     }
 }
