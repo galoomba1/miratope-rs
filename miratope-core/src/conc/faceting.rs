@@ -445,7 +445,6 @@ fn faceting_subdim(
                             hyperplane_vertices.push(idx);
                         }
                     }
-                    hyperplane_vertices.sort_unstable();
 
                     // Check if the hyperplane has been found already.
                     if !checked.contains(&hyperplane_vertices) {
@@ -625,14 +624,24 @@ fn faceting_subdim(
     let mut orbit_idx = 0;
     let mut checked_vertices = HashSet::new();
 
-    let mut hp_i = 0; // idk why i have to do this, thanks rust
-    for ridges_row in ridges {
+    for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
+        let mut possible_ridges = HashSet::new();
+        for facet in &possible_facets[hp_i] {
+            for ridge in &facet.1 {
+                possible_ridges.insert(ridge);
+            }
+        }
         let mut r_i_o_row = Vec::new();
 
-        for ridges_row_row in ridges_row {
+        for (row_row_i, ridges_row_row) in ridges_row.iter_mut().enumerate() {
             let mut r_i_o_row_row = Vec::new();
 
-            for mut ridge in ridges_row_row {
+            for (ridge_i, ridge) in ridges_row_row.iter_mut().enumerate() {
+                if !possible_ridges.contains(&(row_row_i, ridge_i)) {
+                    r_i_o_row_row.push(0); // dummy
+                    continue;
+                }
+
                 // goes through all the ridges
 
                 // globalize
@@ -722,7 +731,6 @@ fn faceting_subdim(
             r_i_o_row.push(r_i_o_row_row);
         }
         ridge_idx_orbits.push(r_i_o_row);
-        hp_i += 1;
     }
 
     let mut f_counts = Vec::new();
@@ -1596,18 +1604,29 @@ impl Concrete {
             let mut checked_vertices = HashSet::new();
 
             for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
+                let mut possible_ridges = HashSet::new();
+                for facet in &possible_facets[hp_i] {
+                    for ridge in &facet.1 {
+                        possible_ridges.insert(ridge);
+                    }
+                }
                 let mut r_i_o_row = Vec::new();
 
-                for ridges_row_row in ridges_row {
+                for (row_row_i, ridges_row_row) in ridges_row.iter_mut().enumerate() {
                     let mut r_i_o_row_row = Vec::new();
 
-                    for ridge in ridges_row_row {
+                    for (ridge_i, ridge) in ridges_row_row.iter_mut().enumerate() {
                         if now.elapsed().as_millis() > DELAY {
                             print!("{}{} ridge orbits, hyperplane orbit {}", CL, orbit_idx, hp_i);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
                         }
-                        
+
+                        if !possible_ridges.contains(&(row_row_i, ridge_i)) {
+                            r_i_o_row_row.push(0); // dummy
+                            continue;
+                        }
+
                         // goes through all the ridges
 
                         // globalize
