@@ -38,8 +38,13 @@ impl Flag {
 }
 
 impl Concrete {
-    /// Computes the symmetry group of a polytope, along with a list of vertex mappings.
+    /// Computes the symmetry group of a polytope, including reflections.
     pub fn get_symmetry_group(&mut self) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
+        return self.get_symmetry_group_with(false);
+    }
+
+    /// Computes the symmetry group of a polytope, along with a list of vertex mappings with the option to exclude reflections or not.
+    pub fn get_symmetry_group_with(&mut self, only_rotations: bool) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
         self.element_sort();
 
         // Iterate through flags until we find a non-hemi facet.
@@ -109,6 +114,12 @@ impl Concrete {
                 let basis = flag.clone().vertex_sequence(&self);
                 let isometry = basis * &base_basis_inverse;
 
+                if only_rotations {
+                    if isometry.determinant() <= 0. {
+                        continue;
+                    }
+                }
+
                 // check if vertices match up
                 let mut vertex_map_row = vec![0; self.vertices.len()];
                 for vertex in &vertices {
@@ -147,24 +158,7 @@ impl Concrete {
 
     /// Computes the rotation subgroup of a polytope, along with a list of vertex mappings.
     pub fn get_rotation_group(&mut self) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
-        if let Some((full_group, full_vertex_map)) = self.get_symmetry_group() {
-            let mut rotation_group = Vec::new();
-            let mut vertex_map = Vec::new();
-    
-            for (idx, el) in full_group.enumerate() {
-                if el.determinant() > 0. {
-                    rotation_group.push(el);
-                    vertex_map.push(full_vertex_map[idx].clone());
-                }
-            }
-    
-            unsafe {
-                Some((Group::new(&self.rank()-1, rotation_group.into_iter()), vertex_map))
-            }
-        }
-        else {
-            None
-        }
+        return self.get_symmetry_group_with(true);
     }
 
     /// Fills in the vertex map.
