@@ -974,11 +974,14 @@ fn faceting_subdim(
                             }
 
                             let mut poly = Concrete {
-                                vertices: new_vertices,
+                                vertices: new_vertices.clone(),
                                 abs: abs.clone(),
                             };
-                            poly.recenter();
-                            
+
+                            if let Some(circumsphere) = Hypersphere::circumsphere(&new_vertices) {
+                                poly.recenter_with(&circumsphere.center);
+                            }
+
                             let amount = poly.element_types()[1].len();
                             
                             if amount <= 1 {
@@ -986,10 +989,16 @@ fn faceting_subdim(
                                 output_facets.push(new_facets.clone());
                             } else {
                                 poly.element_sort();
-                                let components = poly.defiss();
+                                let components = poly.split();
                                 let mut isogonal = true;
-                                for component in components {
-                                    if component.element_types()[1].len() > 1 {
+                                for mut component in components {
+                                    if let Some(circumsphere) = Hypersphere::circumsphere(component.vertices()) {
+                                        component.recenter_with(&circumsphere.center);
+                                        if component.element_types()[1].len() > 1 {
+                                            isogonal = false;
+                                            break;
+                                        }
+                                    } else {
                                         isogonal = false;
                                         break;
                                     }
