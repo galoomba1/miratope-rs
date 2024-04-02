@@ -977,10 +977,7 @@ fn faceting_subdim(
                                 vertices: new_vertices.clone(),
                                 abs: abs.clone(),
                             };
-
-                            if let Some(circumsphere) = Hypersphere::circumsphere(&new_vertices) {
-                                poly.recenter_with(&circumsphere.center);
-                            }
+                            poly.recenter();
 
                             let amount = poly.element_types()[1].len();
                             
@@ -992,13 +989,8 @@ fn faceting_subdim(
                                 let components = poly.split();
                                 let mut isogonal = true;
                                 for mut component in components {
-                                    if let Some(circumsphere) = Hypersphere::circumsphere(component.vertices()) {
-                                        component.recenter_with(&circumsphere.center);
-                                        if component.element_types()[1].len() > 1 {
-                                            isogonal = false;
-                                            break;
-                                        }
-                                    } else {
+                                    component.recenter();
+                                    if component.element_types()[1].len() > 1 {
                                         isogonal = false;
                                         break;
                                     }
