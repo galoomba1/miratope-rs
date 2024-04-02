@@ -66,51 +66,6 @@ impl Ranks {
         }
     }
 
-    /// Sorts some stuff in a way that's useful for the faceting algorithm.
-    pub fn element_sort_strong_with_local(&mut self, local: &Ranks) {
-        for el in 0..self[2].len() {
-            self[2][el].subs.sort_unstable();
-        }
-
-        for rank in 2..self.len()-1 {
-            let mut all_subs = Vec::new();
-            for el in &self[rank] {
-                all_subs.push(el.subs.clone());
-            }
-            let mut sorted = all_subs.clone();
-            sorted.sort_unstable();
-
-            let mut perm = Vec::new();
-            for i in &all_subs {
-                perm.push(sorted.iter().position(|x| x == i).unwrap());
-            }
-
-            for i in 0..self[rank].len() {
-                self[rank][i].subs = sorted[i].clone();
-                self[rank][i].subs.sort_unstable();
-            }
-
-            let mut map_to_local = HashMap::new();
-
-            for i in 0..self[rank+1].len() {
-                for j in 0..self[rank+1][i].subs.len() {
-                    map_to_local.insert(self[rank+1][i].subs[j], local[rank+1][i].subs[j]);
-                }
-            }
-
-            let mut new_list = ElementList::new();
-            for i in 0..self[rank+1].len() {
-                let mut new = Element::new(Subelements::new(), Superelements::new());
-                for sub in &self[rank+1][i].subs {
-                    new.subs.push(perm[*map_to_local.get(sub).unwrap()]);
-                }
-                new.sort();
-                new_list.push(new);
-            }
-            self[rank+1] = new_list;
-        }
-    }
-
     /*
     /// Combines two `Ranks`. Only meant to be used in the faceting algorithm.
     fn append(&mut self, other: &Ranks) {
@@ -862,7 +817,6 @@ fn faceting_subdim(
                 let mut facet_vec = Vec::new();
                 for facet_orbit in &new_facets {
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
-                    let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
                     let mut checked = HashSet::new();
                     for row in &vertex_map {
@@ -881,7 +835,7 @@ fn faceting_subdim(
                             }
                             new_facet[2] = new_list;
 
-                            new_facet.element_sort_strong_with_local(facet_local);
+                            new_facet.element_sort_strong();
                             facet_vec.push(new_facet);
                         }
                     }
@@ -2014,7 +1968,6 @@ impl Concrete {
                         }
                     }
                     let facet = &possible_facets_global[facet_orbit.0][facet_orbit.1].0;
-                    let facet_local = &possible_facets[facet_orbit.0][facet_orbit.1].0;
 
                     let mut checked = HashSet::new();
                     for row in &vertex_map {
@@ -2034,7 +1987,7 @@ impl Concrete {
                             }
                             new_facet[2] = new_list;
 
-                            new_facet.element_sort_strong_with_local(facet_local);
+                            new_facet.element_sort_strong();
                             facet_vec.push(new_facet); // have to do this so you can predict the facet index
                                                     // also it makes the facets sorted by type so that's cool
                         }
