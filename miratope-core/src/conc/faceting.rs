@@ -40,16 +40,16 @@ impl Ranks {
             for el in &self[rank] {
                 all_subs.push(el.subs.clone());
             }
-            let mut sorted = all_subs.clone();
-            sorted.sort_unstable();
+            let mut sorted: Vec<(usize, &Subelements)> = all_subs.iter().enumerate().collect();
+            sorted.sort_unstable_by(|a, b| a.1.cmp(b.1));
 
-            let mut perm = Vec::new();
-            for i in &all_subs {
-                perm.push(sorted.iter().position(|x| x == i).unwrap());
+            let mut perm = vec![0; all_subs.len()];
+            for i in 0..all_subs.len() {
+                perm[sorted[i].0] = i;
             }
 
             for i in 0..self[rank].len() {
-                self[rank][i].subs = sorted[i].clone();
+                self[rank][i].subs = sorted[i].1.clone();
                 self[rank][i].subs.sort_unstable();
             }
 
