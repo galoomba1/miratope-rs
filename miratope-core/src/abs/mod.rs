@@ -465,8 +465,95 @@ impl Abstract {
     /// # Panics
     /// You must call [`Polytope::element_sort`] before calling this method.
     pub fn is_compound(&self) -> bool {
-        let flag_set = FlagSet::new_all(self);
-        flag_set.len() != self.flags().count()
+        if self.rank() < 3 {
+            return false
+        }
+        let mut split = self.clone();
+        for r in 3..self.rank() {
+            let mut new_faces = ElementList::new();
+            let r_len = split[r].len();
+
+            for f_i in 0..r_len {
+                let current_len = new_faces.len();
+                let mut map = HashMap::new();
+                let mut partition = PartitionVec::new();
+                let edge_idxs = &split[r][f_i].subs.clone();
+                
+                for edge_idx in edge_idxs {
+                    let edge = &split[r-1][*edge_idx];
+
+                    for i in 0..edge.subs.len() {
+                        if map.get(&edge.subs[i]).is_none() {
+                            map.insert(edge.subs[i], map.len());
+                            partition.push(edge.subs[i]);
+                        }
+                    }
+                    for i in 1..edge.subs.len() {
+                        partition.union(
+                            *map.get(&edge.subs[0]).unwrap(),
+                            *map.get(&edge.subs[i]).unwrap()
+                        );
+                    }
+                }
+
+                let mut set_of_vertex = HashMap::new();
+                for (i, set) in partition.all_sets().enumerate() {
+                    for (_, v) in set {
+                        set_of_vertex.insert(v, i);
+                    }
+                    if i > 0 {
+                        for sup in &split[r][f_i].sups.clone() {
+                            split[r+1][*sup].subs.push(new_faces.len() + r_len);
+                        }
+                        new_faces.push(Element::new(Subelements::new(), split[r][f_i].sups.clone()));
+                    }
+                }
+
+                let mut new_face = split[r][f_i].clone();
+                new_face.subs.clear();
+
+                for edge_idx in edge_idxs {
+                    let set_idx = set_of_vertex.get(&split[r-1][*edge_idx].subs[0]).unwrap();
+                    if set_idx > &0 {
+                        let idx = current_len + set_idx - 1;
+                        new_faces[idx].subs.push(*edge_idx);
+                        for sup_i in 0..split[r-1][*edge_idx].sups.len() {
+                            if &split[r-1][*edge_idx].sups[sup_i] == &f_i {
+                                split[r-1][*edge_idx].sups[sup_i] = idx + r_len;
+                            }
+                        }
+                    }
+                    else {
+                        new_face.subs.push(*edge_idx);
+                    }
+                }
+
+                split[r][f_i] = new_face;
+            }
+            split[r].append(&mut new_faces);
+        }
+
+        let mut map = HashMap::new();
+        let mut partition = PartitionVec::new();
+        let edge_idxs = &split[self.rank()][0].subs.clone();
+        
+        for edge_idx in edge_idxs {
+            let edge = &split[self.rank()-1][*edge_idx];
+
+            for i in 0..edge.subs.len() {
+                if map.get(&edge.subs[i]).is_none() {
+                    map.insert(edge.subs[i], map.len());
+                    partition.push(edge.subs[i]);
+                }
+            }
+            for i in 1..edge.subs.len() {
+                partition.union(
+                    *map.get(&edge.subs[0]).unwrap(),
+                    *map.get(&edge.subs[i]).unwrap()
+                );
+            }
+        }
+        partition.amount_of_sets() > 1
     }
 }
 
