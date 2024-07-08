@@ -149,13 +149,13 @@ fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
                         j += 1;
                     }
 
-                    for c in 0..vec.len() { // Look for its complement.
+                    for c in b+1..vec.len() { // Look for its complement.
                         if vec[c] == complement {
                             out.insert(a,(b,c));
-                            break
+                            continue 'a
                         }
                     }
-                    continue 'a;
+                    panic!("could not find complement")
                 }
             }
         }
