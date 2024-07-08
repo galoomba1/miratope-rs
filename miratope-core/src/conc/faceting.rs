@@ -149,7 +149,7 @@ fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
                         j += 1;
                     }
 
-                    for c in b+1..vec.len() { // Look for its complement.
+                    for c in 0..vec.len() { // Look for its complement.
                         if vec[c] == complement {
                             out.insert(a,(b,c));
                             break
@@ -169,10 +169,7 @@ fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
 
     'a: for a in 0..vec.len() { // `a` is the index of the base set
         for b in 0..vec.len() { // `b` is the index of a potential subset of `a`
-            if a == b {
-                continue
-            }
-            if vec[b].len() > vec[a].len() { // A strict subset must be smaller than the base.
+            if vec[b].len() >= vec[a].len() { // A strict subset must be smaller than the base.
                 continue
             }
             if vec[b][0] > vec[a][0] { // One of the subsets must contain the first facet.
@@ -811,6 +808,7 @@ fn faceting_subdim(
                         new_facets.push((*hp, component));
                     }
                 }
+                new_facets.sort_unstable();
 
                 // Output the faceted polytope. We will build it from the set of its facets.
 
