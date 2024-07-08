@@ -2143,25 +2143,33 @@ impl Concrete {
                         poly.recenter();
                     }
 
-                    let mut fissary_status = String::new();
+                    let mut fissary_status = "";
                     if mark_fissary {
                         poly.element_sort();
                         
                         if poly.abs.is_compound() {
-                            fissary_status = " [C]".to_owned();
+                            fissary_status = " [C]";
                         } else if poly.is_fissary() {
-                            fissary_status = " [F]".to_owned();
+                            fissary_status = " [F]";
                         }
                     }
+
+                    let name = format!("facet {}({},{}){}",
+                        if any_single_edge_length {edge_length_idx.to_string() + "."} else {"".to_string()},
+                        i.0.0,
+                        i.0.1,
+                        fissary_status
+                    );
+
                     if save_to_file {
                         let mut path = PathBuf::from(&file_path);
-                        path.push(format!("facet ({},{}){}.off", i.0.0, i.0.1, fissary_status));
+                        path.push(format!("{}.off", name));
                         match poly.to_path(&path, Default::default()) {
                             Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
                             Ok(_) => (),
                         }
                     } else {  
-                        output.push((poly, Some(format!("facet ({},{}){}", i.0.0, i.0.1, fissary_status))));
+                        output.push((poly, Some(name)));
                     }
                 }
             }
