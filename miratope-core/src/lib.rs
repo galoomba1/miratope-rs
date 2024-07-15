@@ -441,7 +441,13 @@ pub trait Polytope:
     fn try_antiprism(&self) -> Result<Self, Self::DualError>;
 
     /// Splits compound faces into their components.
-    fn untangle_faces(&mut self);
+    /// Outputs a vec of vecs of split faces per component excluding those that aren't compounds.
+    fn untangle_faces(&mut self) -> Vec<Vec<usize>>;
+
+    /// Splits compound elements with a given rank into their components.
+    /// Outputs a vec of vecs of split elements per component excluding those that aren't compounds.
+    /// Only works if all the elements below the given rank are split.
+    fn untangle_elements(&mut self, rank: usize) -> Vec<Vec<usize>>;
 
     /// Determines whether a given polytope is
     /// [orientable](https://polytope.miraheze.org/wiki/Orientability).

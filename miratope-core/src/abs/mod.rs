@@ -470,86 +470,23 @@ impl Abstract {
         }
         let mut split = self.clone();
         for r in 3..self.rank() {
-            let mut new_faces = ElementList::new();
-            let r_len = split[r].len();
-
-            for f_i in 0..r_len {
-                let current_len = new_faces.len();
-                let mut map = HashMap::new();
-                let mut partition = PartitionVec::new();
-                let edge_idxs = &split[r][f_i].subs.clone();
-                
-                for edge_idx in edge_idxs {
-                    let edge = &split[r-1][*edge_idx];
-
-                    for i in 0..edge.subs.len() {
-                        if map.get(&edge.subs[i]).is_none() {
-                            map.insert(edge.subs[i], map.len());
-                            partition.push(edge.subs[i]);
-                        }
-                    }
-                    for i in 1..edge.subs.len() {
-                        partition.union(
-                            *map.get(&edge.subs[0]).unwrap(),
-                            *map.get(&edge.subs[i]).unwrap()
-                        );
-                    }
-                }
-
-                let mut set_of_vertex = HashMap::new();
-                for (i, set) in partition.all_sets().enumerate() {
-                    for (_, v) in set {
-                        set_of_vertex.insert(v, i);
-                    }
-                    if i > 0 {
-                        for sup in &split[r][f_i].sups.clone() {
-                            split[r+1][*sup].subs.push(new_faces.len() + r_len);
-                        }
-                        new_faces.push(Element::new(Subelements::new(), split[r][f_i].sups.clone()));
-                    }
-                }
-
-                let mut new_face = split[r][f_i].clone();
-                new_face.subs.clear();
-
-                for edge_idx in edge_idxs {
-                    let set_idx = set_of_vertex.get(&split[r-1][*edge_idx].subs[0]).unwrap();
-                    if set_idx > &0 {
-                        let idx = current_len + set_idx - 1;
-                        new_faces[idx].subs.push(*edge_idx);
-                        for sup_i in 0..split[r-1][*edge_idx].sups.len() {
-                            if &split[r-1][*edge_idx].sups[sup_i] == &f_i {
-                                split[r-1][*edge_idx].sups[sup_i] = idx + r_len;
-                            }
-                        }
-                    }
-                    else {
-                        new_face.subs.push(*edge_idx);
-                    }
-                }
-
-                split[r][f_i] = new_face;
-            }
-            split[r].append(&mut new_faces);
+            split.untangle_elements(r);
         }
 
         let mut map = HashMap::new();
         let mut partition = PartitionVec::new();
-        let edge_idxs = &split[self.rank()][0].subs.clone();
         
-        for edge_idx in edge_idxs {
-            let edge = &split[self.rank()-1][*edge_idx];
+        for facet_idx in 0..split.facet_count() {
+            let facet = &split[self.rank()-1][facet_idx];
 
-            for i in 0..edge.subs.len() {
-                if map.get(&edge.subs[i]).is_none() {
-                    map.insert(edge.subs[i], map.len());
-                    partition.push(edge.subs[i]);
+            for i in 0..facet.subs.len() {
+                if !map.contains_key(&facet.subs[i]) {
+                    map.insert(facet.subs[i], map.len());
+                    partition.push(facet.subs[i]);
                 }
-            }
-            for i in 1..edge.subs.len() {
                 partition.union(
-                    *map.get(&edge.subs[0]).unwrap(),
-                    *map.get(&edge.subs[i]).unwrap()
+                    *map.get(&facet.subs[0]).unwrap(),
+                    *map.get(&facet.subs[i]).unwrap()
                 );
             }
         }
@@ -1113,72 +1050,91 @@ impl Polytope for Abstract {
     }
 
     /// Splits compound faces into their components.
-    fn untangle_faces(&mut self) {
-        if self.rank() < 4 {
-            return
-        }
-        let mut new_faces = ElementList::new();
-        let self_3_len = self[3].len();
+    /// Outputs a vec of vecs of split faces per component excluding those that aren't compounds.
+    fn untangle_faces(&mut self) -> Vec<Vec<usize>> {
+        return self.untangle_elements(3);
+    }
 
-        for f_i in 0..self_3_len {
-            let current_len = new_faces.len();
+    /// Splits compound elements with a given rank into their components.
+    /// Outputs a vec of vecs of split elements per component excluding those that aren't compounds.
+    /// Only works if all the elements below the given rank are split.
+    fn untangle_elements(&mut self, rank: usize) -> Vec<Vec<usize>> {
+        if self.rank() <= rank || rank < 3 {
+            return Vec::new();
+        }
+        let mut new_els = ElementList::new();
+        let rank_len = self[rank].len();
+        let mut output = Vec::new();
+
+        for e_i in 0..rank_len {
+            let current_len = new_els.len();
             let mut map = HashMap::new();
             let mut partition = PartitionVec::new();
-            let edge_idxs = &self[3][f_i].subs.clone();
+            let sub_idxs = &self[rank][e_i].subs.clone();
             
-            for edge_idx in edge_idxs {
-                let edge = &self[2][*edge_idx];
+            // Splits the element into components.
+            for sub_idx in sub_idxs {
+                let sub = &self[rank-1][*sub_idx];
 
-                if edge.subs.len() != 2 { // This shouldn't happen, but apparently it does sometimes when doing cross-sections
-                    return
-                }
-                for i in 0..=1 {
-                    if map.get(&edge.subs[i]).is_none() {
-                        map.insert(edge.subs[i], map.len());
-                        partition.push(edge.subs[i]);
+                for i in 0..sub.subs.len() {
+                    if !map.contains_key(&sub.subs[i]) {
+                        map.insert(sub.subs[i], map.len());
+                        partition.push(sub.subs[i]);
                     }
+                    partition.union(
+                        *map.get(&sub.subs[0]).unwrap(),
+                        *map.get(&sub.subs[i]).unwrap()
+                    );
                 }
-                partition.union(
-                    *map.get(&edge.subs[0]).unwrap(),
-                    *map.get(&edge.subs[1]).unwrap()
-                );
             }
 
-            let mut set_of_vertex = HashMap::new();
+            let mut set_of_sub_sub = HashMap::new(); // Map of index of subelement of subelement to component index.
+            let mut output_component = Vec::with_capacity(partition.amount_of_sets());
+            if partition.amount_of_sets() > 1 {
+                output_component.push(e_i); // Add first component element index to output component
+            }
             for (i, set) in partition.all_sets().enumerate() {
                 for (_, v) in set {
-                    set_of_vertex.insert(v, i);
+                    set_of_sub_sub.insert(v, i);
                 }
-                if i > 0 {
-                    for sup in &self[3][f_i].sups.clone() {
-                        self[4][*sup].subs.push(new_faces.len() + self_3_len);
+                if i > 0 { // If not first component:
+                    output_component.push(new_els.len() + rank_len); // Add component element index to output component
+                    // Update subs of sups
+                    for sup in &self[rank][e_i].sups.clone() {
+                        self[rank+1][*sup].subs.push(new_els.len() + rank_len);
                     }
-                    new_faces.push(Element::new(Subelements::new(), self[3][f_i].sups.clone()));
+                    new_els.push(Element::new(Subelements::new(), self[rank][e_i].sups.clone())); // Add component leaving subs empty.
                 }
             }
+            if partition.amount_of_sets() > 1 {
+                output.push(output_component);
+            }
 
-            let mut new_face = self[3][f_i].clone();
-            new_face.subs.clear();
+            let mut new_el = self[rank][e_i].clone(); // First component
+            new_el.subs.clear(); // Clear subs of first component
 
-            for edge_idx in edge_idxs {
-                let set_idx = set_of_vertex.get(&self[2][*edge_idx].subs[0]).unwrap();
+            for sub_idx in sub_idxs {
+                let set_idx = set_of_sub_sub.get(&self[rank-1][*sub_idx].subs[0]).unwrap(); // Component index of sub
                 if set_idx > &0 {
-                    let idx = current_len + set_idx - 1;
-                    new_faces[idx].subs.push(*edge_idx);
-                    for sup_i in 0..self[2][*edge_idx].sups.len() {
-                        if &self[2][*edge_idx].sups[sup_i] == &f_i {
-                            self[2][*edge_idx].sups[sup_i] = idx + self_3_len;
+                    let idx = current_len + set_idx - 1; // Face index of component minus the current number of elements
+                    new_els[idx].subs.push(*sub_idx); // Add sub to component
+                    // Update sups of sub
+                    for sup_i in 0..self[rank-1][*sub_idx].sups.len() {
+                        if &self[rank-1][*sub_idx].sups[sup_i] == &e_i {
+                            self[rank-1][*sub_idx].sups[sup_i] = idx + rank_len;
                         }
                     }
                 }
                 else {
-                    new_face.subs.push(*edge_idx);
+                    new_el.subs.push(*sub_idx); // Add sub to first component
                 }
             }
 
-            self[3][f_i] = new_face;
+            self[rank][e_i] = new_el; // Update first component
         }
-        self[3].append(&mut new_faces);
+        self[rank].append(&mut new_els); // Add new faces to polytope
+
+        return output;
     }
 }
 
