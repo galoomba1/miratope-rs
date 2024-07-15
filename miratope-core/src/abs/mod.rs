@@ -7,7 +7,7 @@ pub mod ranked;
 pub mod valid;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     convert::Infallible,
     ops::{Index, IndexMut},
     slice, vec, iter,
@@ -16,6 +16,7 @@ use std::{
 use self::flag::{Flag, FlagSet};
 use super::Polytope;
 
+use itertools::Itertools;
 use vec_like::VecLike;
 
 use partitions::{PartitionVec, partition_vec};
@@ -861,78 +862,140 @@ impl Polytope for Abstract {
     
     /// Splits a polytope into components without making them strongly connected.
     fn split(&self) -> Vec<Abstract> {
-        if self.rank() < 1 {
-            return vec![Abstract::nullitope()];
+        // Compounds don't exist below rank 2.
+        if self.rank() < 3 {
+            return vec![self.clone()];
+        }
+        let mut component_map = vec![Vec::new(); self.rank()];
+        let mut els_in_components = vec![HashSet::new(); self.rank()];
+        let mut split = self.clone();
+        for r in 3..self.rank() {
+            component_map[r] = split.untangle_elements(r);
+            let mut set = HashSet::new();
+            for component in &component_map[r] {
+                for el in component {
+                    set.insert(*el);
+                }
+            }
+            els_in_components[r] = set;
         }
 
-        let mut output = Vec::<Abstract>::new();
+        let mut map = HashMap::new();
+        let mut partition = PartitionVec::new();
 
-        let flags: Vec<Flag> = self.flags().collect();
-        let mut flags_map_back = HashMap::new();
-        for (idx, flag) in flags.iter().enumerate() {
-            flags_map_back.insert(flag, idx);
-        }
+        for facet_idx in 0..split.facet_count() {
+            let facet = &split[self.rank()-1][facet_idx];
 
-        let mut partition: PartitionVec<()> = partition_vec![(); flags.len()];
-
-        for (idx, flag) in flags.iter().enumerate() {
-            for change in 1..self.rank() {
-                let changed_flag = flag.change(self, change);
-                let changed_idx = flags_map_back.get(&changed_flag).unwrap();
-                
-                partition.union(idx, *changed_idx);
+            for i in 0..facet.subs.len() {
+                if !map.contains_key(&facet.subs[i]) {
+                    map.insert(facet.subs[i], map.len());
+                    partition.push(facet.subs[i]);
+                }
+                partition.union(
+                    *map.get(&facet.subs[0]).unwrap(),
+                    *map.get(&facet.subs[i]).unwrap()
+                );
             }
         }
 
-        let components = partition.all_sets();
+        let mut facets_of_components = vec![Vec::new(); partition.amount_of_sets()];
+        let mut set_of_ridge = HashMap::new();
 
-        for component in components {
-            let mut elements = Ranks::with_rank_capacity(self.rank()+1);
-            elements.push(ElementList::from(vec![Element::new(Subelements::new(), Superelements::new())]));
-            for _ in 1..=self.rank() {
-                elements.push(ElementList::new());
+        for (i, set) in partition.all_sets().enumerate() {
+            for (_, ridge) in set {
+                set_of_ridge.insert(ridge, i);
             }
+        }
+        for (i, facet) in split[self.rank()-1].iter().enumerate() {
+            facets_of_components[*set_of_ridge.get(&facet.subs[0]).unwrap()].push(i);
+        }
 
-            let mut idx_in_rank = vec![HashMap::<usize, usize>::new(); self.rank()+1];
-            let mut counts = vec![0; self.rank()+1];
-            for (flag_idx, _) in component {
-                let mut sub = 0;
+        let mut output = Vec::with_capacity(partition.amount_of_sets());
 
-                for rank in 1..=self.rank() {
-                    match idx_in_rank[rank].get(&flags[flag_idx][rank]) {
-                        Some(idx) => {
-                            if !elements[rank][*idx].subs.contains(&sub) {
-                                elements[rank][*idx].subs.push(sub);
+        for component_facets in facets_of_components {
+            let mut idx_in_rank = vec![BTreeMap::<usize, usize>::new(); self.rank()];
+            let mut el_idxs = component_facets.clone();
+            let mut len_ranks: Vec<usize> = vec![0; self.rank()];
+
+            // facets
+            let mut idx = 0;
+            let mut component_els = HashSet::new();
+            for facet in &el_idxs {
+                if els_in_components[self.rank()-1].contains(facet) {
+                    component_els.insert(*facet);
+                } else {
+                    idx_in_rank[self.rank()-1].insert(*facet, idx);
+                    idx += 1;
+                }
+            }
+            for component in &component_map[self.rank()-1] {
+                let mut found = false;
+                for facet in component {
+                    if component_els.contains(facet) {
+                        idx_in_rank[self.rank()-1].insert(*facet, idx);
+                        found = true;
+                    }
+                }
+                if found {
+                    idx += 1;
+                }
+            }
+            len_ranks[self.rank()-1] = idx;
+
+            // ridges and down to vertices
+            for rank in (2..self.rank()).rev() {
+                let mut idx = 0;
+                let mut component_els = HashSet::new();
+                for el_idx in el_idxs {
+                    for sub in &split[rank][el_idx].subs {
+                        if !idx_in_rank[rank-1].contains_key(&sub) {
+                            if els_in_components[rank-1].contains(&sub) {
+                                component_els.insert(sub);
+                            } else {
+                                idx_in_rank[rank-1].insert(*sub, idx);
+                                idx += 1;
                             }
-
-                            sub = *idx;
-                        }
-                        None => {
-                            idx_in_rank[rank].insert(flags[flag_idx][rank], counts[rank]);
-
-                            elements[rank].push(
-                                Element{
-                                    subs: Subelements::from(vec![sub]),
-                                    sups: Superelements::from(vec![]),
-                                });
-
-                            sub = counts[rank];
-                            counts[rank] += 1;
                         }
                     }
                 }
+                for component in &component_map[rank-1] {
+                    let mut found = false;
+                    for el in component {
+                        if component_els.contains(el) {
+                            idx_in_rank[rank-1].insert(*el, idx);
+                            found = true;
+                        }
+                    }
+                    if found {
+                        idx += 1;
+                    }
+                }
+                len_ranks[rank-1] = idx;
+                el_idxs = Vec::new();
+                for (sub, _) in &idx_in_rank[rank-1] {
+                    el_idxs.push(*sub);
+                }
             }
+
+            // build the polytope
             let mut builder = AbstractBuilder::new();
-            for rank in elements {
+            builder.push_min();
+            builder.push_vertices(len_ranks[1]);
+            for rank in 2..self.rank() {
+                let mut subs_sets = vec![BTreeSet::new(); len_ranks[rank]];
+                for (old_idx, new_idx) in &idx_in_rank[rank] {
+                    for sub in &split[rank][*old_idx].subs {
+                        subs_sets[*new_idx].insert(*idx_in_rank[rank-1].get(sub).unwrap());
+                    }
+                }
                 builder.push_empty();
-                for el in rank {
-                    builder.push_subs(el.subs);
+                for el_subs in subs_sets.into_iter().map(|set| Subelements::from(set.into_iter().collect_vec())) {
+                    builder.push_subs(el_subs);
                 }
             }
             builder.push_max();
             unsafe {
-                let polytope = builder.build();
-                output.push(polytope);
+                output.push(builder.build());
             }
         }
 
