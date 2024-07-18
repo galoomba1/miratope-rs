@@ -195,6 +195,43 @@ fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
     out
 }
 
+/// Makes a set of fissary faceting idxs
+fn mark_fissaries(facetings: &Vec<(Ranks, Vec<(usize, usize)>)>, all_fissary_facets: &Vec<HashSet<usize>>) -> HashSet<usize> {
+    let mut out = HashSet::new();
+    for a in 0..facetings.len() {
+        let mut fissary = false;
+        for facet in &facetings[a].1 {
+            if all_fissary_facets[facet.0].contains(&facet.1) {
+                out.insert(a);
+                fissary = true;
+                break;
+            }
+        }
+        if !fissary {
+            let mut builder = AbstractBuilder::new();
+            for rank in &facetings[a].0 {
+                builder.push_empty();
+                for el in rank {
+                    builder.push_subs(el.subs.clone());
+                }
+            }
+            unsafe {
+                let abs = builder.build();
+                'f: for mut component in abs.split() {
+                    component.dual_mut();
+                    for r in 3..abs.rank() {
+                        if !component.untangle_elements(r).is_empty() {
+                            out.insert(a);
+                            break 'f;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 fn faceting_subdim(
     rank: usize,
     plane: Subspace<f64>,
@@ -204,22 +241,24 @@ fn faceting_subdim(
     max_edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
     uniform: bool,
+    mark_fissary: bool,
     noble_package: Option<(&Vec<Vec<usize>>, &Vec<usize>, usize)>,
     print_faceting_count: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
     Vec<Vec<Ranks>>, // Possible facets, these will be the possible ridges one dimension up
-    HashMap<usize, (usize,usize)> // Map of compound facetings to their components.
+    HashMap<usize, (usize,usize)>, // Map of compound facetings to their components.
+    HashSet<usize> // Fissary facetings if marking fissaries is turned on.
 ) {
     let total_vert_count = points.len();
 
-        let mut now = Instant::now();
+    let mut now = Instant::now();
     if rank == 2 {
         // Screw it, let's not bother with tetrads.
         if total_vert_count > 2 {
             return (
-                vec![], vec![], vec![], HashMap::new()
+                vec![], vec![], vec![], HashMap::new(), HashSet::new()
             )
         }
 
@@ -259,7 +298,8 @@ fn faceting_subdim(
                             ].into(),
                     ].into()]
                     ],
-                    HashMap::new()
+                    HashMap::new(),
+                    HashSet::new()
             )
         }
         else {
@@ -277,7 +317,8 @@ fn faceting_subdim(
                             ].into(),
                     ].into()]
                     ],
-                    HashMap::new()
+                    HashMap::new(),
+                    HashSet::new()
             )
         }
     }
@@ -509,6 +550,7 @@ fn faceting_subdim(
     let mut compound_facets: Vec<HashMap<usize, (usize,usize)>> = Vec::new();
     let mut ridges: Vec<Vec<Vec<Ranks>>> = Vec::new();
     let mut ff_counts = Vec::new();
+    let mut all_fissary_facets = Vec::new();
 
     for (i, orbit) in hyperplane_orbits.iter().enumerate() {
         let (hp, hp_v) = (orbit[0].clone(), hyperplanes_vertices[i][0].clone());
@@ -545,8 +587,8 @@ fn faceting_subdim(
             points.push(flat_points[*v].clone());
         }
 
-        let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, uniform, None, false);
+        let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row, fissary_facets) =
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, None, uniform, mark_fissary, None, false);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -569,6 +611,7 @@ fn faceting_subdim(
         compound_facets.push(compound_facets_row);
         ridges.push(ridges_row);
         ff_counts.push(ff_counts_row);
+        all_fissary_facets.push(fissary_facets);
     }
 
     let mut ridge_idx_orbits = Vec::new();
@@ -1024,7 +1067,8 @@ fn faceting_subdim(
         output_ridges.push(a);
     }
 
-    return (output, f_counts, output_ridges, label_irc(&output_facets))
+    let fissary_facets = if mark_fissary { mark_fissaries(&output, &all_fissary_facets) } else { HashSet::new() };
+    return (output, f_counts, output_ridges, label_irc(&output_facets), fissary_facets)
 }
 
 impl Concrete {
@@ -1479,6 +1523,7 @@ impl Concrete {
             let mut compound_facets: Vec<HashMap<usize, (usize,usize)>> = Vec::new();
             let mut ridges: Vec<Vec<Vec<Ranks>>> = Vec::new();
             let mut ff_counts = Vec::new();
+            let mut all_fissary_facets = Vec::new();
 
             for (idx, orbit) in hyperplane_orbits.iter().enumerate() {
                 let (hp, hp_v) = (orbit.0.clone(), orbit.1.clone());
@@ -1520,8 +1565,8 @@ impl Concrete {
                     None
                 };
 
-                let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                    faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, uniform, noble_package, true);
+                let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row, fissary_facets) =
+                    faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, uniform, mark_fissary, noble_package, true);
 
                 let mut possible_facets_global_row = Vec::new();
                 for f in &possible_facets_row {
@@ -1544,6 +1589,7 @@ impl Concrete {
                 compound_facets.push(compound_facets_row);
                 ridges.push(ridges_row);
                 ff_counts.push(ff_counts_row);
+                all_fissary_facets.push(fissary_facets);
 
                 println!("{}{}: {} facets, {} verts, {} copies", CL, idx, possible_facets_row.len(), hp_v.len(), orbit.2);
                 std::io::stdout().flush().unwrap();
@@ -2088,8 +2134,24 @@ impl Concrete {
                             
                             if abs.is_compound() {
                                 fissary_status = " [C]";
-                            } else if poly.is_fissary() {
-                                fissary_status = " [F]";
+                            } else {
+                                let mut fissary = false;
+                                for facet in &facets {
+                                    if all_fissary_facets[facet.0].contains(&facet.1) {
+                                        fissary_status = " [F]";
+                                        fissary = true;
+                                        break;
+                                    }
+                                }
+                                if !fissary {
+                                    let mut split = abs.dual();
+                                    for r in 3..rank {
+                                        if !split.untangle_elements(r).is_empty() {
+                                            fissary_status = " [F]";
+                                            break;
+                                        }
+                                    }
+                                }
                             }
                         }
                         
@@ -2150,7 +2212,7 @@ impl Concrete {
                         
                         if poly.abs.is_compound() {
                             fissary_status = " [C]";
-                        } else if poly.is_fissary() {
+                        } else if all_fissary_facets[i.0.0].contains(&i.0.1) {
                             fissary_status = " [F]";
                         }
                     }
