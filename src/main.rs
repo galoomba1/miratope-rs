@@ -32,8 +32,7 @@ mod ui;
 /// The link to the [Polytope Wiki](https://polytope.miraheze.org/wiki/).
 pub const WIKI_LINK: &str = "https://polytope.miraheze.org/wiki/";
 
-/// The floating-point type for the entire application. Can be either `f32` or
-/// `f64`, and it should compile the same.
+/// The floating-point type for the entire application. Must be `f64` or it won't compile.
 type Float = f64;
 
 /// A [`Concrete`](miratope_core::conc::Concrete) polytope with the floating
