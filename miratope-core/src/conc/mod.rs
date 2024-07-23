@@ -346,6 +346,10 @@ impl Polytope for Concrete {
             }
         }
 
+        if partition.amount_of_sets() == 1 {
+            return vec![self.clone()];
+        }
+
         let mut facets_of_components = vec![Vec::new(); partition.amount_of_sets()];
         let mut set_of_ridge = HashMap::new();
 
