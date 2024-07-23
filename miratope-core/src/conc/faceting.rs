@@ -24,8 +24,7 @@ pub enum GroupEnum {
     Chiral(bool),
 }
 
-// https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences
-const CL: &str = "\x1b[2K\r";
+const CL: &str = "\r                                                                                                                   \r";
 
 const DELAY: u128 = 200;
 
