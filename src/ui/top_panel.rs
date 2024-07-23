@@ -268,8 +268,7 @@ pub fn file_dialog(
                         match Concrete::from_path(&path) {
                             Ok(q) => {
                                 *p = q;
-                                let file_name = path.file_name().unwrap().to_str().unwrap();
-                                name.0 = file_name[..file_name.len()-4].into();
+                                name.0 = path.file_stem().unwrap().to_string_lossy().into_owned();
                             }
                             Err(err) => eprintln!("File open failed: {}", err),
                         }

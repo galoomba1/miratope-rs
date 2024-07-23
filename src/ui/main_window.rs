@@ -1,5 +1,7 @@
 //! The systems that update the main window.
 
+use std::path::PathBuf;
+
 use super::config::{MeshColor, WfColor};
 use super::right_panel::ElementTypesRes;
 use super::{camera::ProjectionType, top_panel::SectionState};
@@ -28,7 +30,13 @@ pub struct PolyName(pub String);
 
 impl Default for PolyName {
     fn default() -> PolyName {
-        PolyName("default".to_string())
+        let mut args = std::env::args();
+        args.next();
+        if let Some(path) = args.next() {
+            PolyName(PathBuf::from(path).file_stem().unwrap().to_string_lossy().into_owned())
+        } else {
+            PolyName("default".to_string())
+        }
     }
 }
 
