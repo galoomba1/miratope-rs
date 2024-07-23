@@ -1968,6 +1968,8 @@ impl Concrete {
             println!("\nBuilding...");
             let mut used_facets = HashMap::new(); // used for outputting the facets at the end if `save_facets` is `true`.
             let mut faceting_idx = 0; // We used to use `output.len()` but this doesn't work if you skip outputting the polytopes.
+            let mut compound_count = 0;
+            let mut fissary_count = 0;
 
             for facets in output_facets {
                 if !save && !save_facets {
@@ -2133,11 +2135,13 @@ impl Concrete {
                             
                             if abs.is_compound() {
                                 fissary_status = " [C]";
+                                compound_count += 1;
                             } else {
                                 let mut fissary = false;
                                 for facet in &facets {
                                     if all_fissary_facets[facet.0].contains(&facet.1) {
                                         fissary_status = " [F]";
+                                        fissary_count += 1;
                                         fissary = true;
                                         break;
                                     }
@@ -2147,6 +2151,7 @@ impl Concrete {
                                     for r in 3..rank {
                                         if !split.untangle_elements(r).is_empty() {
                                             fissary_status = " [F]";
+                                            fissary_count += 1;
                                             break;
                                         }
                                     }
@@ -2234,6 +2239,14 @@ impl Concrete {
                         output.push((poly, Some(name)));
                     }
                 }
+            }
+
+            if mark_fissary {
+                println!("\n{} legit{}, {} compound{}, {} fissar{}",
+                    faceting_idx-compound_count-fissary_count, if faceting_idx-compound_count-fissary_count == 1 {""} else {"s"},
+                    compound_count, if compound_count == 1 {""} else {"s"},
+                    fissary_count, if fissary_count == 1 {"y"} else {"ies"}
+                )
             }
 
             if any_single_edge_length {
