@@ -1373,12 +1373,9 @@ impl Concrete {
                             }
                         }
                         let mut possible_vertices = Vec::new();
-                        let mut used_vertices: HashSet<usize> = HashSet::from_iter(tuple.clone().into_iter());
+                        let mut used_vertices: HashSet<&usize> = HashSet::from_iter(tuple.iter());
                         for vertex in 0..vertices.len() {
                             if !used_vertices.contains(&vertex) {
-                                for row in &subsymmetry {
-                                    used_vertices.insert(row[vertex]);
-                                }
                                 let edge_length = (&vertices[vertex]-&vertices[tuple[0]]).norm();
                                 if let Some(min) = min_edge_length {
                                     if edge_length < min - f64::EPS {
@@ -1391,6 +1388,9 @@ impl Concrete {
                                     }
                                 }
                                 possible_vertices.push(vertex);
+                                for row in &subsymmetry {
+                                    used_vertices.insert(&row[vertex]);
+                                }
                             }
                         }
                         for new_vertex in possible_vertices {
@@ -1487,12 +1487,9 @@ impl Concrete {
                         }
                     }
                     let mut possible_vertices = Vec::new();
-                    let mut used_vertices: HashSet<usize> = HashSet::from_iter(rep.clone().into_iter());
+                    let mut used_vertices: HashSet<&usize> = HashSet::from_iter(rep.iter());
                     for vertex in 0..vertices.len() {
                         if !used_vertices.contains(&vertex) {
-                            for row in &subsymmetry {
-                                used_vertices.insert(row[vertex]);
-                            }
                             let edge_length = (&vertices[vertex]-&vertices[rep[0]]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
@@ -1505,6 +1502,9 @@ impl Concrete {
                                 }
                             }
                             possible_vertices.push(vertex);
+                            for row in &subsymmetry {
+                                used_vertices.insert(&row[vertex]);
+                            }
                         }
                     }
                     for new_vertex in possible_vertices {
