@@ -112,7 +112,7 @@ fn binary(vec: &Vec<(usize,usize)>, min: usize) -> usize{
 }
 
 /// For each faceting, checks if it is a compound of other facetings, and labels it if so.
-fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
+fn label_mixed_compounds(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
     let mut out = HashMap::<usize, (usize,usize)>::new(); // Map of the index of the compound to the indices of the components.
 
     'a: for a in 0..vec.len() { // `a` is the index of the base set
@@ -164,7 +164,7 @@ fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
 }
 
 /// For each faceting, checks if it is a compound of other facetings, and removes it if so.
-fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
+fn filter_mixed_compounds(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
     let mut out = Vec::new(); // The indices of the facetings that aren't compounds.
 
     'a: for a in 0..vec.len() { // `a` is the index of the base set
@@ -194,34 +194,36 @@ fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
     out
 }
 
-/// Makes a set of fissary faceting idxs
-fn mark_fissaries(facetings: &Vec<(Ranks, Vec<(usize, usize)>)>, all_fissary_facets: &Vec<HashSet<usize>>) -> HashSet<usize> {
+/// Makes a set of fissary faceting idxs excluding mixed compounds
+fn mark_fissaries(facetings: &Vec<(Ranks, Vec<(usize, usize)>)>, all_fissary_facets: &Vec<HashSet<usize>>, mixed_compounds: &HashMap<usize, (usize,usize)>) -> HashSet<usize> {
     let mut out = HashSet::new();
     for a in 0..facetings.len() {
-        let mut fissary = false;
-        for facet in &facetings[a].1 {
-            if all_fissary_facets[facet.0].contains(&facet.1) {
-                out.insert(a);
-                fissary = true;
-                break;
-            }
-        }
-        if !fissary {
-            let mut builder = AbstractBuilder::new();
-            for rank in &facetings[a].0 {
-                builder.push_empty();
-                for el in rank {
-                    builder.push_subs(el.subs.clone());
+        if !mixed_compounds.contains_key(&a) {
+            let mut fissary = false;
+            for facet in &facetings[a].1 {
+                if all_fissary_facets[facet.0].contains(&facet.1) {
+                    out.insert(a);
+                    fissary = true;
+                    break;
                 }
             }
-            unsafe {
-                let abs = builder.build();
-                'f: for mut component in abs.split() {
-                    component.dual_mut();
-                    for r in 3..abs.rank() {
-                        if !component.untangle_elements(r).is_empty() {
-                            out.insert(a);
-                            break 'f;
+            if !fissary {
+                let mut builder = AbstractBuilder::new();
+                for rank in &facetings[a].0 {
+                    builder.push_empty();
+                    for el in rank {
+                        builder.push_subs(el.subs.clone());
+                    }
+                }
+                unsafe {
+                    let abs = builder.build();
+                    'f: for mut component in abs.split() {
+                        component.dual_mut();
+                        for r in 3..abs.rank() {
+                            if !component.untangle_elements(r).is_empty() {
+                                out.insert(a);
+                                break 'f;
+                            }
                         }
                     }
                 }
@@ -248,7 +250,7 @@ fn faceting_subdim(
     Vec<usize>, // Counts of each hyperplane orbit
     Vec<Vec<Ranks>>, // Possible facets, these will be the possible ridges one dimension up
     HashMap<usize, (usize,usize)>, // Map of compound facetings to their components.
-    HashSet<usize> // Fissary facetings if marking fissaries is turned on.
+    HashSet<usize> // Fissary facetings excluding mixed compounds if marking fissaries is turned on.
 ) {
     let total_vert_count = points.len();
 
@@ -1066,8 +1068,9 @@ fn faceting_subdim(
         output_ridges.push(a);
     }
 
-    let fissary_facets = if mark_fissary { mark_fissaries(&output, &all_fissary_facets) } else { HashSet::new() };
-    return (output, f_counts, output_ridges, label_irc(&output_facets), fissary_facets)
+    let mixed_compounds = label_mixed_compounds(&output_facets);
+    let fissary_facets = if mark_fissary && rank > 3 { mark_fissaries(&output, &all_fissary_facets, &mixed_compounds) } else { HashSet::new() };
+    return (output, f_counts, output_ridges, mixed_compounds, fissary_facets)
 }
 
 impl Concrete {
@@ -2025,7 +2028,7 @@ impl Concrete {
 
             if !include_compounds {
                 println!("\nFiltering mixed compounds...");
-                let output_idxs = filter_irc(&output_facets);
+                let output_idxs = filter_mixed_compounds(&output_facets);
                 let mut output_new = Vec::new();
                 for idx in output_idxs {
                     output_new.push(output_facets[idx].clone());
