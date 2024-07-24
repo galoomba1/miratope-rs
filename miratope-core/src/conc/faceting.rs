@@ -1007,7 +1007,7 @@ fn faceting_subdim(
                 }
 
                 if let Some(max) = max_per_hyperplane {
-                    if output.len() + skipped >= max {
+                    if output.len() >= max {
                         break 'l;
                     }
                 }
@@ -1363,36 +1363,58 @@ impl Concrete {
                     let mut new_tuple_orbits = Vec::new();
 
                     for (idx, tuple) in tuple_orbits.iter().enumerate() {
-                        for new_vertex in tuple[tuple.len()-1]..vertices.len() {
+                        let mut subsymmetry = Vec::new();
+                        for row in &vertex_map {
+                            let mut new_tuple: Vec<usize> = tuple.iter().map(|v| row[*v]).collect();
+                            new_tuple.sort_unstable();
+
+                            if &new_tuple == tuple {
+                                subsymmetry.push(row.clone());
+                            }
+                        }
+                        let mut possible_vertices = Vec::new();
+                        let mut used_vertices: HashSet<usize> = HashSet::from_iter(tuple.clone().into_iter());
+                        for vertex in 0..vertices.len() {
+                            if !used_vertices.contains(&vertex) {
+                                for row in &subsymmetry {
+                                    used_vertices.insert(row[vertex]);
+                                }
+                                let edge_length = (&vertices[vertex]-&vertices[tuple[0]]).norm();
+                                if let Some(min) = min_edge_length {
+                                    if edge_length < min - f64::EPS {
+                                        continue;
+                                    }
+                                }
+                                if let Some(max) = max_edge_length {
+                                    if edge_length > max + f64::EPS {
+                                        continue;
+                                    }
+                                }
+                                possible_vertices.push(vertex);
+                            }
+                        }
+                        for new_vertex in possible_vertices {
                             if now.elapsed().as_millis() > DELAY {
                                 print!("{}{} {}-plane orbits, {}-plane orbit {}", CL, new_tuple_orbits.len(), number-1, number-2, idx);
                                 std::io::stdout().flush().unwrap();
                                 now = Instant::now();
                             }
 
-                            let mut wrong_edge = false;
-
-                            let edge_length = (&vertices[tuple[0]]-&vertices[new_vertex]).norm();
-                            if let Some(min) = min_edge_length {
-                                if edge_length < min - f64::EPS {
-                                    wrong_edge = true;
-                                }
-                            }
-                            if let Some(max) = max_edge_length {
-                                if edge_length > max + f64::EPS {
-                                    wrong_edge = true;
-                                }
-                            }
-                            if wrong_edge {
-                                continue;
-                            }
-
                             let mut new_tuple = tuple.clone();
                             new_tuple.push(new_vertex);
 
+                            let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
+
+                            let mut subspace_vertices = Vec::new();
+                            for (idx, vertex) in vertices.iter().enumerate() {
+                                if subspace.is_outer(vertex) {
+                                    subspace_vertices.push(idx);
+                                }
+                            }
+
                             let mut already_seen = false;
                             for row in &vertex_map {
-                                let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
+                                let mut moved: Vec<usize> = subspace_vertices.iter().map(|x| row[*x]).collect();
                                 moved.sort_unstable();
 
                                 if checked.contains(&moved) {
@@ -1404,14 +1426,47 @@ impl Concrete {
                                 continue;
                             }
 
-                            new_tuple.sort_unstable();
+                            // Check if the subspace is valid by checking if there's at least 1 faceting.
+                            let mut stabilizer = Vec::new();
+                            for row in &vertex_map {
+                                let mut slice = Vec::new();
+                                for v in &subspace_vertices {
+                                    slice.push(row[*v]);
+                                }
+                                let mut slice_sorted = slice.clone();
+                                slice_sorted.sort_unstable();
 
-                            let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
-                            if subspace.rank() == number-1 {
-                                new_tuple_orbits.push(new_tuple.clone());
+                                if slice_sorted == subspace_vertices {
+                                    stabilizer.push(slice.clone());
+                                }
                             }
 
-                            checked.insert(new_tuple);
+                            // Converts global vertex indices to local ones.
+                            let mut map_back = BTreeMap::new();
+                            for (idx, el) in stabilizer[0].iter().enumerate() {
+                                map_back.insert(*el, idx);
+                            }
+                            let mut new_stabilizer = stabilizer.clone();
+
+                            for a in 0..stabilizer.len() {
+                                for b in 0..stabilizer[a].len() {
+                                    new_stabilizer[a][b] = *map_back.get(&stabilizer[a][b]).unwrap();
+                                }
+                            }
+                            
+                            let mut points = Vec::new();
+                            for v in &subspace_vertices {
+                                points.push(vertices_ord[*v].clone());
+                            }
+
+                            let (possible_facets_row, _ff_counts_row, _ridges_row, _compound_facets_row, _fissary_facets) =
+                                faceting_subdim(number, subspace, points, new_stabilizer, min_edge_length, max_edge_length, Some(1), uniform, false, None, false);
+
+                            if possible_facets_row.len() > 0 {
+                                new_tuple_orbits.push(subspace_vertices.clone());
+                            }
+
+                            checked.insert(subspace_vertices);
                         }
                     }
                     println!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
@@ -1422,9 +1477,37 @@ impl Concrete {
                 let mut checked = HashSet::new();
 
                 for (idx, rep) in tuple_orbits.iter().enumerate() {
-                    let last_vert = rep[rep.len()-1];
+                    let mut subsymmetry = Vec::new();
+                    for row in &vertex_map {
+                        let mut new_rep: Vec<usize> = rep.iter().map(|v| row[*v]).collect();
+                        new_rep.sort_unstable();
 
-                    for new_vertex in last_vert+1..vertices.len() {
+                        if &new_rep == rep {
+                            subsymmetry.push(row.clone());
+                        }
+                    }
+                    let mut possible_vertices = Vec::new();
+                    let mut used_vertices: HashSet<usize> = HashSet::from_iter(rep.clone().into_iter());
+                    for vertex in 0..vertices.len() {
+                        if !used_vertices.contains(&vertex) {
+                            for row in &subsymmetry {
+                                used_vertices.insert(row[vertex]);
+                            }
+                            let edge_length = (&vertices[vertex]-&vertices[rep[0]]).norm();
+                            if let Some(min) = min_edge_length {
+                                if edge_length < min - f64::EPS {
+                                    continue;
+                                }
+                            }
+                            if let Some(max) = max_edge_length {
+                                if edge_length > max + f64::EPS {
+                                    continue;
+                                }
+                            }
+                            possible_vertices.push(vertex);
+                        }
+                    }
+                    for new_vertex in possible_vertices {
                         let mut tuple = rep.clone();
                         tuple.push(new_vertex);
 
@@ -1432,18 +1515,6 @@ impl Concrete {
                             print!("{}{} hyperplane orbits, {}-plane orbit {}", CL, hyperplane_orbits.len(), rank-3, idx);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
-                        }
-
-                        let edge_length = (&vertices[new_vertex]-&vertices[rep[0]]).norm();
-                        if let Some(min) = min_edge_length {
-                            if edge_length < min - f64::EPS {
-                                continue;
-                            }
-                        }
-                        if let Some(max) = max_edge_length {
-                            if edge_length > max + f64::EPS {
-                                continue;
-                            }
                         }
 
                         let mut points = Vec::new();
