@@ -1919,21 +1919,18 @@ impl Concrete {
 
                 let last_facet = facets.last().unwrap();
 
-                'a: loop {
-                    let hp = last_facet.0;
-                    let f = last_facet.1;
+                let hp = last_facet.0;
+                let f = last_facet.1;
 
-                    let ridge_idxs_local = &possible_facets[hp][f].1;
-                    for ridge_idx in ridge_idxs_local {
-                        let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
-                        let mul = ridge_muls[hp][f][ridge_orbit];
-        
-                        new_ridge_muls[ridge_orbit] += mul;
-                        if new_ridge_muls[ridge_orbit] > 2 {
-                            break 'a;
-                        }
+                let ridge_idxs_local = &possible_facets[hp][f].1;
+                for ridge_idx in ridge_idxs_local {
+                    let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
+                    let mul = ridge_muls[hp][f][ridge_orbit];
+    
+                    new_ridge_muls[ridge_orbit] += mul;
+                    if new_ridge_muls[ridge_orbit] > 2 {
+                        break;
                     }
-                    break;
                 }
                 let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
                 for r in &new_ridge_muls {
