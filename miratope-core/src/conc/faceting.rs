@@ -1404,6 +1404,9 @@ impl Concrete {
                             new_tuple.push(new_vertex);
 
                             let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
+                            if subspace.rank() != number-1 {
+                                continue;
+                            }
 
                             let mut subspace_vertices = Vec::new();
                             for (idx, vertex) in vertices.iter().enumerate() {
