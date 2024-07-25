@@ -1481,20 +1481,19 @@ impl ConcretePolytope for Concrete {
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
         
-        let mut i = 1;
-        while i < types.len() {
-            if i == self.rank() {
-                break;
-            }
-            let mut j = 0;
-            while j < types[i].len() {
+        for i in 1..types.len() {
+            for j in 0..types[i].len() {
                 let example = types[i][j].example;
                 
-                let mut element = self.abs.element(i, example).unwrap();
+                let mut element = self.element(i, example).unwrap();
                 
                 element.element_sort();
-                if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
-                    return true;
+                
+                let components = element.split();
+                for component in components {
+                    if component.is_fissary() {
+                        return true;
+                    }
                 }
                 
                 let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
@@ -1502,9 +1501,7 @@ impl ConcretePolytope for Concrete {
                 if figure.is_compound() {
                     return true;
                 }
-                j = j+1;
             }
-            i = i+1;
         }
         return false;
     }
