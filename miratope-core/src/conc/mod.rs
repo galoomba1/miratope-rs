@@ -1481,7 +1481,7 @@ impl ConcretePolytope for Concrete {
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
         
-        for i in 1..types.len() {
+        for i in 1..self.rank() {
             for j in 0..types[i].len() {
                 let example = types[i][j].example;
                 
