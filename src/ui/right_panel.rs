@@ -198,10 +198,11 @@ pub fn show_right_panel(
                             break;
                         }
 
-                        ui.heading(format!("{}",
+                        ui.heading(format!("{} ({})",
                             if rank > EL_NAMES.len() {format!("{}-elements", r-1)}
-                            else {EL_NAMES[r].to_string()})
-                        );
+                            else {EL_NAMES[r].to_string()},
+                            poly.el_count(r)
+                        ));
                         for t in types {
                             let i = t.example;
 
