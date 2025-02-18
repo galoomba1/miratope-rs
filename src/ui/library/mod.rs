@@ -172,10 +172,10 @@ impl Library {
         // Otherwise, just manually goes through the files.
         else {
             let mut contents = Vec::new();
+            let mut paths = fs::read_dir(path.clone())?.map(|res| res.map(|e| e.path())).collect::<Result<Vec<PathBuf>, io::Error>>()?;
+            paths.sort();
 
-            for entry in fs::read_dir(path.clone())? {
-                let path = &entry?.path();
-
+            for path in &paths {
                 // Adds a new unloaded folder.
                 if let Some(unloaded_folder) = Self::new_folder(path) {
                     contents.push(unloaded_folder);

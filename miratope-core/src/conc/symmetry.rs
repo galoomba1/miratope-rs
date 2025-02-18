@@ -38,46 +38,45 @@ impl Flag {
 }
 
 impl Concrete {
-    /// Computes the symmetry group of a polytope, along with a list of vertex mappings.
+    /// Computes the symmetry group of a polytope, including reflections.
     pub fn get_symmetry_group(&mut self) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
-        let mut fixed = self.clone(); // We'll relabel the facets if needed so the first facet isn't hemi.
+        return self.get_symmetry_group_with(false);
+    }
 
-        let mut facet_idx = 0;
-        if self.rank() > 1 {
-            while facet_idx < self.el_count(self.rank()-1) {
-                let facet_space = Subspace::from_points(
-                    self.abs.element_and_vertices(self.rank()-1, facet_idx).unwrap().0.iter().map(|x| &self.vertices[*x])
-                );
-                if facet_space.distance(&Point::zeros(self.dim().unwrap())) > f64::EPS {
-                    break;
-                }
-                facet_idx += 1;
+    /// Computes the symmetry group of a polytope, along with a list of vertex mappings with the option to exclude reflections or not.
+    pub fn get_symmetry_group_with(&mut self, only_rotations: bool) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
+        self.element_sort();
+
+        // Iterate through flags until we find a non-hemi facet.
+        let mut facet_idx: usize = 0;
+        while facet_idx < self.facet_count() {
+            let facet_space = Subspace::from_points(
+                self.abs.element_and_vertices(self.rank()-1, facet_idx).unwrap().0.iter().map(|x| &self.vertices[*x])
+            );
+            if facet_space.distance(&Point::zeros(self.dim().unwrap())) > f64::EPS {
+                break;
             }
-
-            if facet_idx == self.el_count(self.rank()-1) {
-                println!("Symmetry calculation failed. All facets pass through the origin.");
-                return None
-            }
-
-            if facet_idx != 0 {
-                fixed[self.rank()-1][facet_idx] = self[self.rank()-1][0].clone();
-                fixed[self.rank()-1][0] = self[self.rank()-1][facet_idx].clone();
-
-                for ridge in &mut fixed[self.rank()-2] {
-                    for sup in &mut ridge.sups {
-                        if *sup == 0 {
-                            *sup = facet_idx;
-                        } else if *sup == facet_idx {
-                            *sup = 0;
-                        }
-                    }
-                }
-            }
+            facet_idx += 1;
+        }
+        if facet_idx == self.facet_count() {
+            println!("Symmetry calculation failed. All facets pass through the origin.");
+            return None
         }
 
-        fixed.element_sort();
-        let flag_iter = FlagIter::new(&fixed.abs);
-        let (types, types_map_back) = &fixed.element_types_common();
+        let mut base_flag = Flag::with_capacity(self.rank() + 1);
+        base_flag.push(0); // maximal element
+        let mut idx = facet_idx;
+        base_flag.push(idx); // facet
+
+        for r in (1..=self.rank()-1).rev() {
+            idx = self[(r, idx)].subs[0];
+            base_flag.push(idx);
+        }
+
+        base_flag.reverse();
+
+        let flag_iter = FlagIter::new(&self.abs);
+        let (types, types_map_back) = &self.element_types_common();
 
         let mut vertices_pointord = Vec::<PointOrd<f64>>::new();
         for v in &self.vertices {
@@ -87,18 +86,18 @@ impl Concrete {
         let mut vertex_map: Vec<Vec<usize>> = Vec::new();
 
         // Sets of elements' vertex sets.
-        let elements = Vec::<HashSet<Vec<usize>>>::from_iter(
-            (0..self.rank()).map(|i| HashSet::from_iter(
-                (0..self.el_count(i)).map(|j| {
-                    let mut vec = fixed.abs.element_vertices(i, j).unwrap();
-                    vec.sort_unstable();
-                    vec
-                }))
-            )
-        );
+        let mut elements = vec![Vec::<HashSet<Vec<usize>>>::new(); self.rank()];
+        for i in 2..self.rank() {
+            let mut of_this_rank = vec![HashSet::<Vec<usize>>::new(); types[i].len()];
+            for j in 0..self[i].len() {
+                let mut vertices = self.abs.element_vertices(i, j).unwrap();
+                vertices.sort_unstable();
+                of_this_rank[types_map_back[i][j]].insert(vertices);
+            }
+            elements[i] = of_this_rank;
+        }
 
-        let base_flag = fixed.first_flag();
-        let base_basis = base_flag.clone().vertex_sequence(&fixed);
+        let base_basis = base_flag.clone().vertex_sequence(&self);
         let base_basis_inverse = base_basis.clone().try_inverse().unwrap();
 
         let mut group = Vec::<Matrix<f64>>::new();
@@ -112,11 +111,17 @@ impl Concrete {
             {
 
                 // calculate isometry
-                let basis = flag.clone().vertex_sequence(&fixed);
+                let basis = flag.clone().vertex_sequence(&self);
                 let isometry = basis * &base_basis_inverse;
 
+                if only_rotations {
+                    if isometry.determinant() <= 0. {
+                        continue;
+                    }
+                }
+
                 // check if vertices match up
-                let mut vertex_map_row = vec![0; fixed.vertices.len()];
+                let mut vertex_map_row = vec![0; self.vertices.len()];
                 for vertex in &vertices {
                     let new_vertex = PointOrd::new(isometry.clone() * vertex.0.matrix());
                     match vertices.get(&new_vertex) {
@@ -132,9 +137,9 @@ impl Concrete {
                 // check if elements match up
                 for rank in 2..self.rank() {
                     for idx in 0..types[rank].len() {
-                        let mut new_element_vertices: Vec<usize> = fixed.abs.element_vertices(rank, types[rank][idx].example).unwrap().iter().map(|x| vertex_map_row[*x]).collect();
+                        let mut new_element_vertices: Vec<usize> = self.abs.element_vertices(rank, types[rank][idx].example).unwrap().iter().map(|x| vertex_map_row[*x]).collect();
                         new_element_vertices.sort_unstable();
-                        if !elements[rank].contains(&new_element_vertices) {
+                        if !elements[rank][idx].contains(&new_element_vertices) {
                             continue 'a;
                         }
                     }
@@ -153,24 +158,7 @@ impl Concrete {
 
     /// Computes the rotation subgroup of a polytope, along with a list of vertex mappings.
     pub fn get_rotation_group(&mut self) -> Option<(Group<vec::IntoIter<Matrix<f64>>>, Vec<Vec<usize>>)> {
-        if let Some((full_group, full_vertex_map)) = self.get_symmetry_group() {
-            let mut rotation_group = Vec::new();
-            let mut vertex_map = Vec::new();
-    
-            for (idx, el) in full_group.enumerate() {
-                if el.determinant() > 0. {
-                    rotation_group.push(el);
-                    vertex_map.push(full_vertex_map[idx].clone());
-                }
-            }
-    
-            unsafe {
-                Some((Group::new(&self.rank()-1, rotation_group.into_iter()), vertex_map))
-            }
-        }
-        else {
-            None
-        }
+        return self.get_symmetry_group_with(true);
     }
 
     /// Fills in the vertex map.
