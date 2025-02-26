@@ -10,7 +10,7 @@ use crate::Concrete;
 
 use bevy::prelude::*;
 use bevy_egui::EguiSettings;
-use miratope_core::abs::Ranked;
+use miratope_core::{abs::Ranked, file::FromFile};
 
 /// The plugin in charge of the Miratope main window, and of drawing the
 /// polytope onto it.
@@ -22,6 +22,7 @@ impl Plugin for MainWindowPlugin {
             .add_system(update_scale_factor.system())
             .add_system_to_stage(CoreStage::PostUpdate, update_changed_polytopes.system())
             .add_system_to_stage(CoreStage::PostUpdate, update_changed_color.system())
+            .add_system(update_drag_and_drop.system())
             .init_resource::<PolyName>();
     }
 }
@@ -66,6 +67,32 @@ pub fn update_visible(
 pub fn update_scale_factor(mut egui_settings: ResMut<'_, EguiSettings>, windows: Res<'_, Windows>) {
     if let Some(window) = windows.get_primary() {
         egui_settings.scale_factor = 1.0 / window.scale_factor();
+    }
+}
+
+/// Checks for dragging and dropping files and updates the polytope if so.
+pub fn update_drag_and_drop(
+    mut events: EventReader<'_, '_, FileDragAndDrop>,
+    mut query: Query<'_, '_, &mut Concrete>,
+    mut name: ResMut<'_, PolyName>,
+) {
+    for state in events.iter() {
+        match state {
+            FileDragAndDrop::DroppedFile { id: _, path_buf } => {
+                if let Some(mut p) = query.iter_mut().next() {
+                    match Concrete::from_path(&path_buf) {
+                        Ok(q) => {
+                            *p = q;
+                            name.0 = path_buf.file_stem().unwrap().to_string_lossy().into_owned();
+                            return; // Only load the first valid file.
+                        }
+                        Err(err) => eprintln!("File open failed: {}", err),
+                    }
+                }
+            }
+
+            _default => {}
+        }
     }
 }
 
