@@ -2312,7 +2312,7 @@ impl Concrete {
                 }
             }
 
-            if mark_fissary {
+            if mark_fissary && save {
                 println!("\n{} legit{}, {} compound{}, {} fissar{}",
                     faceting_idx-compound_count-fissary_count, if faceting_idx-compound_count-fissary_count == 1 {""} else {"s"},
                     compound_count, if compound_count == 1 {""} else {"s"},
