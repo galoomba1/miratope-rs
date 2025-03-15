@@ -3,7 +3,7 @@
 
 use std::{
     cmp::Ordering,
-    collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+    collections::{hash_map::Entry, HashMap, HashSet, VecDeque, BTreeSet},
     hash::{Hash, Hasher},
     iter,
     ops::Range,
@@ -309,7 +309,7 @@ impl OrientedFlag {
 
 /// Represents a set of flag changes. Each flag change is represented by the
 /// rank of the element it modifies.
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct FlagChanges(Vec<usize>);
 impl_veclike!(FlagChanges, Item = usize);
 
@@ -577,9 +577,10 @@ impl<'a> Iterator for OrientedFlagIter<'a> {
 
 /// Represents a set of flags, created by applying a specific set of flag
 /// changes to a flag in a polytope.
+#[derive(Clone, Hash)]
 pub struct FlagSet {
     /// The flags contained in the set.
-    pub flags: HashSet<Flag>,
+    pub flags: BTreeSet<Flag>,
 
     /// The flag changes from which these flags were generated.
     pub flag_changes: FlagChanges,

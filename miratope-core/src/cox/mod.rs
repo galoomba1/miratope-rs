@@ -154,7 +154,7 @@ impl Cox<f64> {
             for (j, n_j) in prev_gens.column_iter().enumerate() {
                 // All other entries in the dot product between columns are zero.
                 let dot = n_i.rows_range(0..=j).dot(&n_j.rows_range(0..=j));
-                n_i[j] = ((f64::PI / self[(i, j)]).fcos() - dot) / n_j[j];
+                n_i[j] = (-(f64::PI / self[(i, j)]).fcos() - dot) / n_j[j];
             }
 
             // If the vector doesn't fit in spherical space.

@@ -6,7 +6,7 @@ pub mod faceting;
 pub mod symmetry;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, BTreeMap, BTreeSet},
     ops::{Index, IndexMut}, iter,
 };
 
@@ -23,6 +23,7 @@ use crate::{
     geometry::*,
 };
 use approx::abs_diff_eq;
+use itertools::Itertools;
 use partitions::{PartitionVec, partition_vec};
 use rayon::prelude::*;
 use vec_like::*;
@@ -307,6 +308,160 @@ impl Polytope for Concrete {
         output
     }
     
+    /// Splits a polytope into components without making them strongly connected.
+    fn split(&self) -> Vec<Concrete> {
+        // Compounds don't exist below rank 2.
+        if self.rank() < 3 {
+            return vec![self.clone()];
+        }
+        let mut component_map = vec![Vec::new(); self.rank()];
+        let mut els_in_components = vec![HashSet::new(); self.rank()];
+        let mut split = self.clone();
+        for r in 3..self.rank() {
+            component_map[r] = split.untangle_elements(r);
+            let mut set = HashSet::new();
+            for component in &component_map[r] {
+                for el in component {
+                    set.insert(*el);
+                }
+            }
+            els_in_components[r] = set;
+        }
+
+        let mut map = HashMap::new();
+        let mut partition = PartitionVec::new();
+
+        for facet_idx in 0..split.facet_count() {
+            let facet = &split[self.rank()-1][facet_idx];
+
+            for i in 0..facet.subs.len() {
+                if !map.contains_key(&facet.subs[i]) {
+                    map.insert(facet.subs[i], map.len());
+                    partition.push(facet.subs[i]);
+                }
+                partition.union(
+                    *map.get(&facet.subs[0]).unwrap(),
+                    *map.get(&facet.subs[i]).unwrap()
+                );
+            }
+        }
+
+        if partition.amount_of_sets() == 1 {
+            return vec![self.clone()];
+        }
+
+        let mut facets_of_components = vec![Vec::new(); partition.amount_of_sets()];
+        let mut set_of_ridge = HashMap::new();
+
+        for (i, set) in partition.all_sets().enumerate() {
+            for (_, ridge) in set {
+                set_of_ridge.insert(ridge, i);
+            }
+        }
+        for (i, facet) in split[self.rank()-1].iter().enumerate() {
+            facets_of_components[*set_of_ridge.get(&facet.subs[0]).unwrap()].push(i);
+        }
+
+        let mut output = Vec::<Concrete>::with_capacity(partition.amount_of_sets());
+
+        for component_facets in facets_of_components {
+            let mut idx_in_rank = vec![BTreeMap::<usize, usize>::new(); self.rank()];
+            let mut el_idxs = component_facets.clone();
+            let mut len_ranks: Vec<usize> = vec![0; self.rank()];
+
+            // facets
+            let mut idx = 0;
+            let mut component_els = HashSet::new();
+            for facet in &el_idxs {
+                if els_in_components[self.rank()-1].contains(facet) {
+                    component_els.insert(*facet);
+                } else {
+                    idx_in_rank[self.rank()-1].insert(*facet, idx);
+                    idx += 1;
+                }
+            }
+            for component in &component_map[self.rank()-1] {
+                let mut found = false;
+                for facet in component {
+                    if component_els.contains(facet) {
+                        idx_in_rank[self.rank()-1].insert(*facet, idx);
+                        found = true;
+                    }
+                }
+                if found {
+                    idx += 1;
+                }
+            }
+            len_ranks[self.rank()-1] = idx;
+
+            // ridges and down to vertices
+            for rank in (2..self.rank()).rev() {
+                let mut idx = 0;
+                let mut component_els = HashSet::new();
+                for el_idx in el_idxs {
+                    for sub in &split[rank][el_idx].subs {
+                        if !idx_in_rank[rank-1].contains_key(&sub) {
+                            if els_in_components[rank-1].contains(&sub) {
+                                component_els.insert(sub);
+                            } else {
+                                idx_in_rank[rank-1].insert(*sub, idx);
+                                idx += 1;
+                            }
+                        }
+                    }
+                }
+                for component in &component_map[rank-1] {
+                    let mut found = false;
+                    for el in component {
+                        if component_els.contains(el) {
+                            idx_in_rank[rank-1].insert(*el, idx);
+                            found = true;
+                        }
+                    }
+                    if found {
+                        idx += 1;
+                    }
+                }
+                len_ranks[rank-1] = idx;
+                el_idxs = Vec::new();
+                for (sub, _) in &idx_in_rank[rank-1] {
+                    el_idxs.push(*sub);
+                }
+            }
+
+            // build the polytope
+            let mut builder = AbstractBuilder::new();
+            builder.push_min();
+            builder.push_vertices(len_ranks[1]);
+            for rank in 2..self.rank() {
+                let mut subs_sets = vec![BTreeSet::new(); len_ranks[rank]];
+                for (old_idx, new_idx) in &idx_in_rank[rank] {
+                    for sub in &split[rank][*old_idx].subs {
+                        subs_sets[*new_idx].insert(*idx_in_rank[rank-1].get(sub).unwrap());
+                    }
+                }
+                builder.push_empty();
+                for el_subs in subs_sets.into_iter().map(|set| Subelements::from(set.into_iter().collect_vec())) {
+                    builder.push_subs(el_subs);
+                }
+            }
+            builder.push_max();
+            unsafe {
+                let abs = builder.build();
+                let mut vertices = vec![Point::zeros(self.dim().unwrap()); len_ranks[1]];
+                for (old_idx, new_idx) in &idx_in_rank[1] {
+                    vertices[*new_idx] = self.vertices[*old_idx].clone();
+                }
+                output.push(Concrete {
+                    vertices: vertices,
+                    abs: abs
+                });
+            }
+        }
+
+        output
+    }
+
     // TODO: A method that builds an omnitruncate together with a map from flags
     // to vertices? We got some math details to figure out.
     fn omnitruncate(&self) -> Self {
@@ -450,8 +605,16 @@ impl Polytope for Concrete {
     }
 
     /// Splits compound faces into their components.
-    fn untangle_faces(&mut self) {
-        self.abs.untangle_faces();
+    /// Outputs a vec of vecs of split faces per component excluding those that aren't compounds.
+    fn untangle_faces(&mut self) -> Vec<Vec<usize>> {
+        return self.abs.untangle_faces();
+    }
+
+    /// Splits compound elements with a given rank into their components.
+    /// Outputs a vec of vecs of split elements per component excluding those that aren't compounds.
+    /// Only works if all the elements below the given rank are split.
+    fn untangle_elements(&mut self, rank: usize) -> Vec<Vec<usize>> {
+        return self.abs.untangle_elements(rank);
     }
 }
 
@@ -657,7 +820,7 @@ pub trait ConcretePolytope: Polytope {
     /// measuring from a specified direction, or returns `None` in the case of
     /// the nullitope.
     fn minmax(&self, direction: Vector<f64>) -> Option<(f64, f64)> {
-        use itertools::{Itertools, MinMaxResult::*};
+        use itertools::MinMaxResult::*;
 
         let hyperplane = Hyperplane::new(direction, 0.0);
 
@@ -1289,9 +1452,7 @@ impl ConcretePolytope for Concrete {
 
         // Safety: TODO shit, this one's complicated... I'll come back to it.
         unsafe {
-            let mut abs = builder.build();
-            abs.untangle_faces();
-            Self::new(vertices, abs)
+            Self::new(vertices, builder.build())
         }
     }
 
@@ -1320,20 +1481,19 @@ impl ConcretePolytope for Concrete {
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
         
-        let mut i = 1;
-        while i < types.len() {
-            if i == self.rank() {
-                break;
-            }
-            let mut j = 0;
-            while j < types[i].len() {
+        for i in 1..self.rank() {
+            for j in 0..types[i].len() {
                 let example = types[i][j].example;
                 
-                let mut element = self.abs.element(i, example).unwrap();
+                let mut element = self.element(i, example).unwrap();
                 
                 element.element_sort();
-                if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
-                    return true;
+                
+                let components = element.split();
+                for component in components {
+                    if component.is_fissary() {
+                        return true;
+                    }
                 }
                 
                 let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
@@ -1341,9 +1501,7 @@ impl ConcretePolytope for Concrete {
                 if figure.is_compound() {
                     return true;
                 }
-                j = j+1;
             }
-            i = i+1;
         }
         return false;
     }
@@ -1362,25 +1520,35 @@ impl ConcretePolytope for Concrete {
 
         builder.push_empty();
 
-        let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
-        let mut current = 0 as usize;
+        let mut compound = BTreeMap::<PointOrd<f64>,(usize,Subelements)>::new();
+        let mut compound_hemi = HashMap::<Vec<usize>,(usize,Subelements)>::new();
+        let mut current: usize = 0;
         for i in 0..self.facet_count() {
             let temp = self.element(self.rank() - 1, i).unwrap();
             let facetvert = temp.vertices.iter();
             let facet = self.abs.ranks()[self.rank() - 1][i].clone();
             let subspace = Subspace::from_points(facetvert);
-            
-            let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
-            contained_vertices.sort();
-            if compound.contains_key(&contained_vertices) {
-                compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
+
+            if subspace.is_outer(&Point::zeros(self.dim().unwrap())) {
+                let subspace_point = self.vertices.iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
+                if compound_hemi.contains_key(&subspace_point) {
+                    compound_hemi.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
+                } else {
+                    compound_hemi.insert(subspace_point,(current,facet.subs.clone()));
+                    current+=1;
+                }
             } else {
-                compound.insert(contained_vertices,(current,facet.subs.clone()));
-                current+=1;
+                let subspace_point = PointOrd::new(subspace.project(&Point::zeros(self.dim().unwrap())));
+                if compound.contains_key(&subspace_point) {
+                    compound.get_mut(&subspace_point).unwrap().1.extend(facet.subs.clone());
+                } else {
+                    compound.insert(subspace_point,(current,facet.subs.clone()));
+                    current+=1;
+                }
             }
         }
-        let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
-        compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
+        let mut compound_ordered = compound.iter().map(|x| x.1).chain(compound_hemi.iter().map(|x| x.1)).collect::<Vec<&(usize,Subelements)>>();
+        compound_ordered.sort_unstable_by(|a,b| a.0.cmp(&b.0));
         compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
         
         builder.push_max();
