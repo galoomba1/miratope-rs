@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName, config::{MeshColor, WfColor}};
+use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName, config::{MeshColor, WfColor, SlotsPerPage}};
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
@@ -342,6 +342,7 @@ pub fn show_top_panel(
     mut show_help: ResMut<'_, ShowHelp>,
     mut export_memory: ResMut<'_, ExportMemory>,
     mut colors: (ResMut<'_, ClearColor>, ResMut<'_, MeshColor>, ResMut<'_, WfColor>),
+    mut slots_per_page: ResMut<'_, SlotsPerPage>,
 
     mut visuals: ResMut<'_, egui::Visuals>,
 
@@ -845,7 +846,7 @@ pub fn show_top_panel(
             if ui.button("Memory").clicked() {
                 show_memory.0 = !show_memory.0;
             }
-            memory.show(&mut query, &mut poly_name, &egui_ctx, &mut show_memory.0);
+            memory.show(&mut query, &mut poly_name, &mut slots_per_page, &egui_ctx, &mut show_memory.0);
 
             if ui.button("Help").clicked() {
                 show_help.0 = !show_help.0;

@@ -41,6 +41,7 @@ impl Plugin for ConfigPlugin {
             .insert_resource(config.mesh_color)
             .insert_resource(config.wf_color)
             .insert_resource(config.light_mode.visuals())
+            .insert_resource(config.slots_per_page)
             .add_system(update_visuals.system())
             .add_system_to_stage(CoreStage::Last, save_config.system());
     }
@@ -128,6 +129,17 @@ impl LightMode {
     }
 }
 
+/// Number of memory slots per page.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SlotsPerPage(pub usize);
+
+impl Default for SlotsPerPage {
+    /// Returns the corresponding egui visuals.
+    fn default() -> SlotsPerPage {
+        SlotsPerPage(16)
+    }
+}
+
 /// Updates the application appearance whenever the visuals are changed. This
 /// occurs at application startup and whenever the user toggles light/dark mode.
 fn update_visuals(egui_ctx: Res<'_, EguiContext>, visuals: Res<'_, egui::Visuals>) {
@@ -152,6 +164,9 @@ pub struct Config {
 
     /// Whether light mode is enabled.
     pub light_mode: LightMode,
+
+    /// Number of memory slots per page.
+    pub slots_per_page: SlotsPerPage,
 }
 
 impl Config {
@@ -225,6 +240,7 @@ fn save_config(
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
     visuals: Res<'_, egui::Visuals>,
+    slots_per_page: Res<'_, SlotsPerPage>,
 ) {
     // If the application is being exited:
     if exit.iter().next().is_some() {
@@ -233,6 +249,7 @@ fn save_config(
             mesh_color: mesh_color.clone(),
             wf_color: wf_color.clone(),
             light_mode: LightMode(!visuals.dark_mode),
+            slots_per_page: slots_per_page.clone(),
         };
 
         config.save(&config_path.0);
