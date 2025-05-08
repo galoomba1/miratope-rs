@@ -1,6 +1,6 @@
 //! Manages the memory tab.
 
-use std::cmp::min;
+use std::cmp::*;
 
 use bevy::prelude::{Query, Res, ResMut};
 use bevy_egui::{egui, EguiContext};
@@ -59,6 +59,7 @@ impl Memory {
         open: &mut bool
     ) {
         let spp = slots_per_page.0;
+        self.start_page = if self.len() < spp {0} else {min(self.start_page, self.len()-spp)};
         self.end_page = min(self.start_page + spp, self.len());
         egui::Window::new("Memory")
             .open(open)
@@ -75,6 +76,14 @@ impl Memory {
                     if ui.button("Add slot").clicked() {
                         self.slots.push(None);
                     }
+                    
+                    ui.add_space(20.);
+                    ui.label("Slots per page:");
+                    ui.add(
+                        egui::DragValue::new(&mut slots_per_page.0)
+                        .speed(0.04)
+                        .clamp_range(1..=std::usize::MAX)
+                    );
                 });
     
                 ui.separator();
@@ -150,20 +159,17 @@ impl Memory {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new("<").enabled(self.len() > spp)).clicked() {
-                        self.start_page = if self.start_page < spp {0} else {self.start_page - spp};
-                        self.end_page = self.start_page + spp;
-                    }
+                    let len = self.len(); // there's probably a better way to do this but idk rust
+                    ui.add(
+                        egui::DragValue::new(&mut self.start_page)
+                        .suffix(format!(" - {}", self.end_page as isize - 1))
+                        .speed(0.4)
+                        .clamp_range(0..=if len < spp {0} else {len-spp})
+                    );
                     ui.label(format!(
-                        "{} - {} / {}",
-                        self.start_page,
-                        (min(self.end_page, self.len())) as isize - 1,
+                        "/  {}",
                         self.len()
                     ));
-                    if ui.add(egui::Button::new(">").enabled(self.len() > spp)).clicked() {
-                        self.end_page = min(self.end_page + spp, self.len());
-                        self.start_page = self.end_page - spp;
-                    }
                 });
             });
         });
