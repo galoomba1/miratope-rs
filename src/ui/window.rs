@@ -1444,7 +1444,12 @@ impl UpdateWindow for TruncateWindow {
     }
 
     fn name_action(&self, name: &mut String) {
-        *name = format!("Truncated {}", name);
+        for i in &self.truncate_type {
+            if *i { // Check if there's a ringed node. If not, no truncation is performed, so the name shouldn't be changed.
+                *name = format!("Truncated {}", name);
+                return
+            }
+        }
     }
 
     fn build(&mut self, ui: &mut Ui) {
