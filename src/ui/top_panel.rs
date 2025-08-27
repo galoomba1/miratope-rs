@@ -6,7 +6,9 @@ use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPoi
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
-use bevy_egui::{egui::{self, menu, Ui}, EguiContext};
+use bevy::ecs::change_detection::ResMut;
+use bevy_egui::{egui::{self, containers::menu, Ui}, EguiContext};
+use egui::MenuBar;
 use miratope_core::{conc::{ConcretePolytope, faceting::GroupEnum, symmetry::Vertices}, file::FromFile, float::Float as Float2, Polytope, abs::Ranked};
 
 /// The plugin in charge of everything on the top panel.
@@ -34,6 +36,7 @@ impl Plugin for TopPanelPlugin {
 }
 
 /// Stores the state of the cross-section view.
+#[derive(Resource)]
 pub enum SectionState {
     /// The view is active.
     Active {
@@ -147,6 +150,7 @@ impl Default for SectionDirection {
 }
 
 /// Stores whether the memory window is shown.
+#[derive(Resource)]
 pub struct ShowMemory(bool);
 
 impl Default for ShowMemory {
@@ -156,6 +160,7 @@ impl Default for ShowMemory {
 }
 
 /// Stores whether the help window is shown.
+#[derive(Resource)]
 pub struct ShowHelp(bool);
 
 impl Default for ShowHelp {
@@ -165,6 +170,7 @@ impl Default for ShowHelp {
 }
 
 /// Stores whether we're exporting the memory and the index of the memory slot.
+#[derive(Resource)]
 pub struct ExportMemory(bool, usize);
 
 impl Default for ExportMemory {
@@ -219,7 +225,7 @@ impl Default for FileDialogMode {
 }
 
 /// The state the file dialog is in.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct FileDialogState {
     /// The file dialog mode.
     mode: FileDialogMode,
@@ -291,7 +297,7 @@ pub fn file_dialog(
 
 /// Whether the hotkey to enable "advanced" options is enabled.
 pub fn advanced(keyboard: &Input<KeyCode>) -> bool {
-    keyboard.pressed(KeyCode::LControl) || keyboard.pressed(KeyCode::RControl)
+    keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight)
 }
 
 /// All of the windows that can be shown on screen, as mutable resources.
@@ -368,8 +374,8 @@ pub fn show_top_panel(
     ): EguiWindows<'_>,
 ) {
     // The top bar.
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx(), |ui| {
-        menu::bar(ui, |ui| {
+    egui::TopBottomPanel::top("top_panel").show(egui_ctx.get(), |ui| {
+        MenuBar::new().ui(ui, |ui| {
             
             // Operations on files.
             menu::menu(ui, "File", |ui| {
@@ -854,7 +860,7 @@ pub fn show_top_panel(
             egui::Window::new("Help")
                 .open(&mut show_help.0)
                 .resizable(false)
-                .show(egui_ctx.ctx(), |ui| {
+                .show(egui_ctx.get(), |ui| {
                     ui.heading("Hotkeys");
                     ui.label("V: toggle faces\nB: toggle wireframe");
                     ui.separator();
@@ -872,7 +878,7 @@ pub fn show_top_panel(
             // Background color picker.
 
             // The current background color.
-            let [r, g, b, a] = colors.0.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.0.0.to_srgba().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new background color.
@@ -885,7 +891,7 @@ pub fn show_top_panel(
 
             // Updates the background color if necessary.
             if color != new_color {
-                colors.0.0 = Color::rgb(
+                colors.0.0 = Color::srgb(
                     new_color.r() as f32 / 255.0,
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
@@ -895,7 +901,7 @@ pub fn show_top_panel(
             // Mesh color picker.
 
             // The current mesh color.
-            let [r, g, b, a] = colors.1.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.1.0.to_srgba().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new mesh color.
@@ -908,7 +914,7 @@ pub fn show_top_panel(
 
             // Updates the mesh color if necessary.
             if color != new_color {
-                colors.1.0 = Color::rgb(
+                colors.1.0 = Color::srgb(
                     new_color.r() as f32 / 255.0,
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
@@ -918,7 +924,7 @@ pub fn show_top_panel(
             // Wireframe color picker.
 
             // The current wireframe color.
-            let [r, g, b, a] = colors.2.0.as_rgba_f32().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.2.0.to_srgba().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new wireframe color.
@@ -931,7 +937,7 @@ pub fn show_top_panel(
 
             // Updates the wireframe color if necessary.
             if color != new_color {
-                colors.2.0 = Color::rgb(
+                colors.2.0 = Color::srgb(
                     new_color.r() as f32 / 255.0,
                     new_color.g() as f32 / 255.0,
                     new_color.b() as f32 / 255.0,
@@ -1025,13 +1031,14 @@ fn show_views(
             }
 
             // Cross sections on a lower dimension
-            if ui.add(egui::Button::new("+").enabled(
+            if ui.add(egui::Button::selectable(
                 section_direction.len() <
                     if let SectionState::Active {original_polytope, ..} = section_state.clone() {
                         original_polytope.rank()-3
                     } else {
                         0
-                    }
+                    },
+                "+"
                 )).clicked() {
                 let p = query.iter_mut().next().unwrap();
                 let dim = p.dim_or();
@@ -1043,7 +1050,7 @@ fn show_views(
                 section_direction.push(SectionDirection{0:direction});
             }
             // Cross sections on a higher dimension
-            if ui.add(egui::Button::new("-").enabled(section_direction.len() > 1)).clicked() {
+            if ui.add(egui::Button::selectable(section_direction.len() > 1,"-")).clicked() {
                 section_state.remove();
                 section_direction.pop();
             }

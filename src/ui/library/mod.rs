@@ -89,7 +89,7 @@ impl std::ops::BitOrAssign for ShowResult {
 ///
 /// The library is internally stored is a tree-like structure. Once a folder
 /// loads, it's (currently) never unloaded.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Resource)]
 pub enum Library {
     /// A folder whose contents have not yet been read.
     UnloadedFolder {
@@ -256,8 +256,8 @@ fn show_library(
         egui::SidePanel::left("left_panel")
             .default_width(300.0)
             .max_width(450.0)
-            .show(egui_ctx.ctx(), |ui| {
-                egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(egui_ctx.get(), |ui| {
+                egui::containers::ScrollArea::vertical().show(ui, |ui| {
                     match library.show(ui, PathBuf::from(lib_path.as_ref())) {
                         // No action needs to be taken.
                         ShowResult::None => {}

@@ -1,5 +1,6 @@
 //! The systems that update the main window.
 
+use bevy::ecs::entity::unique_slice::Windows;
 use super::config::{MeshColor, WfColor};
 use super::right_panel::ElementTypesRes;
 use super::{camera::ProjectionType, top_panel::SectionState};
@@ -24,6 +25,7 @@ impl Plugin for MainWindowPlugin {
     }
 }
 
+#[derive(Resource)]
 pub struct PolyName(pub String);
 
 impl Default for PolyName {
@@ -38,14 +40,14 @@ pub fn update_visible(
     mut wfs_vis: Query<'_, '_, &mut Visible, Without<Concrete>>,
 ) {
     if keyboard.get_pressed().count() == 1 {
-        if keyboard.just_pressed(KeyCode::V) {
+        if keyboard.just_pressed(KeyCode::KeyV) {
             if let Some(mut visible) = polies_vis.iter_mut().next() {
                 let vis = visible.is_visible;
                 visible.is_visible = !vis;
             }
         }
 
-        if keyboard.just_pressed(KeyCode::B) {
+        if keyboard.just_pressed(KeyCode::KeyB) {
             if let Some(mut visible) = wfs_vis.iter_mut().next() {
                 let vis = visible.is_visible;
                 visible.is_visible = !vis;

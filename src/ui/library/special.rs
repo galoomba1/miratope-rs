@@ -77,13 +77,13 @@ impl SpecialLibrary {
                     ui.add(
                         egui::DragValue::new(n)
                             .speed(0.03)
-                            .clamp_range(2..=usize::MAX),
+                            .range(2..=usize::MAX),
                     );
 
                     // Turning number.
                     let max_n = *n / 2;
                     ui.label("d:");
-                    ui.add(egui::DragValue::new(d).speed(0.03).clamp_range(1..=max_n));
+                    ui.add(egui::DragValue::new(d).speed(0.03).range(1..=max_n));
                 });
 
                 if clicked {
@@ -103,13 +103,13 @@ impl SpecialLibrary {
                     ui.add(
                         egui::DragValue::new(n)
                             .speed(0.03)
-                            .clamp_range(2..=usize::MAX),
+                            .range(2..=usize::MAX),
                     );
 
                     // Turning number.
                     let max_n = *n * 2 / 3;
                     ui.label("d:");
-                    ui.add(egui::DragValue::new(d).speed(0.03).clamp_range(1..=max_n));
+                    ui.add(egui::DragValue::new(d).speed(0.03).range(1..=max_n));
 
                     clicked
                 });
@@ -131,26 +131,26 @@ impl SpecialLibrary {
                     ui.add(
                         egui::DragValue::new(n1)
                             .speed(0.03)
-                            .clamp_range(2..=usize::MAX),
+                            .range(2..=usize::MAX),
                     );
 
                     // Turning number.
                     let max_n1 = *n1 / 2;
                     ui.label("d₁:");
-                    ui.add(egui::DragValue::new(d1).speed(0.03).clamp_range(1..=max_n1));
+                    ui.add(egui::DragValue::new(d1).speed(0.03).range(1..=max_n1));
 
                     // Number of sides.
                     ui.label("n₂:");
                     ui.add(
                         egui::DragValue::new(n2)
                             .speed(0.03)
-                            .clamp_range(2..=usize::MAX),
+                            .range(2..=usize::MAX),
                     );
 
                     // Turning number.
                     let max_n2 = *n2 / 2;
                     ui.label("d₂:");
-                    ui.add(egui::DragValue::new(d2).speed(0.03).clamp_range(1..=max_n2));
+                    ui.add(egui::DragValue::new(d2).speed(0.03).range(1..=max_n2));
 
                     clicked
                 });
@@ -168,7 +168,7 @@ impl SpecialLibrary {
                     let clicked = ui.button(text).clicked();
 
                     ui.label("Rank:");
-                    ui.add(egui::DragValue::new(rank).speed(0.03).clamp_range(-1..=20));
+                    ui.add(egui::DragValue::new(rank).speed(0.03).range(-1..=20));
 
                     clicked
                 });

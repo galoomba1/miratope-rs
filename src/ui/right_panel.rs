@@ -30,7 +30,7 @@ pub struct ElementTypeWithData {
     radius: Option<f64>,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Resource)]
 pub struct ElementTypesRes {
     /// Whether the panel has been activated. Should be `false` on startup and `true`
     /// once `Generate` is clicked.
@@ -166,17 +166,17 @@ pub fn show_right_panel(
     egui::SidePanel::right("right_panel")
         .default_width(300.0)
         .max_width(450.0)
-        .show(egui_ctx.ctx(), |ui| {
+        .show(egui_ctx.get(), |ui| {
             
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new("Generate").enabled(!element_types.main)).clicked() {
+                if ui.add(egui::Button::selectable(!element_types.main, "Generate")).clicked() {
                     if let Some(p) = query.iter_mut().next() {
                         element_types.main = true;
                         *element_types = element_types.from_poly(p, poly_name.0.clone());
                     }
                 }
     
-                if ui.add(egui::Button::new("Load").enabled(!element_types.main)).clicked() {
+                if ui.add(egui::Button::selectable(!element_types.main,"Load")).clicked() {
                     if let Some(mut p) = query.iter_mut().next() {
                         element_types.main = true;
                         element_types.main_updating = true;
@@ -189,7 +189,7 @@ pub fn show_right_panel(
             ui.separator();
 
             if element_types.active {
-                egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::containers::ScrollArea::vertical().show(ui, |ui| {
                     for (r, types) in element_types.types.clone().into_iter().enumerate().skip(1) {
                         let poly = &element_types.poly;
                         let rank = element_types.poly.rank();

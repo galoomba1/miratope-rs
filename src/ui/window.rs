@@ -15,7 +15,7 @@ use miratope_core::{conc::ConcretePolytope, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, CtxRef, Layout, Ui, Widget},
+    egui::{self, Context, Layout, Ui, Widget},
     EguiContext,
 };
 
@@ -42,23 +42,24 @@ pub struct WindowPlugin;
 
 impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(DualWindow::plugin())
-            .add_plugin(PyramidWindow::plugin())
-            .add_plugin(PrismWindow::plugin())
-            .add_plugin(TegumWindow::plugin())
-            .add_plugin(AntiprismWindow::plugin())
-            .add_plugin(DuopyramidWindow::plugin())
-            .add_plugin(DuoprismWindow::plugin())
-            .add_plugin(DuotegumWindow::plugin())
-            .add_plugin(DuocombWindow::plugin())
-            .add_plugin(StarWindow::plugin())
-            .add_plugin(CompoundWindow::plugin())
-            .add_plugin(TruncateWindow::plugin())
-            .add_plugin(ScaleWindow::plugin())
-            .add_plugin(FacetingSettings::plugin())
-            .add_plugin(RotateWindow::plugin())
-            .add_plugin(PlaneWindow::plugin())
-            .add_plugin(TranslateWindow::plugin());
+        app.add_plugins((
+            DualWindow::plugin(),
+            PyramidWindow::plugin(),
+            PrismWindow::plugin(),
+            TegumWindow::plugin(),
+            AntiprismWindow::plugin(),
+            DuopyramidWindow::plugin(),
+            DuoprismWindow::plugin(),
+            DuotegumWindow::plugin(),
+            DuocombWindow::plugin(),
+            StarWindow::plugin(),
+            CompoundWindow::plugin(),
+            TruncateWindow::plugin(),
+            ScaleWindow::plugin(),
+            FacetingSettings::plugin(),
+            RotateWindow::plugin(),
+            PlaneWindow::plugin(),
+            TranslateWindow::plugin()));
     }
 }
 
@@ -97,7 +98,7 @@ fn resize(point: &mut Point, dim: usize) {
 
 /// The base trait for a window, containing the common code. You probably don't
 /// want to implement **only** this.
-pub trait Window: Send + Sync + Default {
+pub trait Window: Send + Sync + Default + Resource {
     /// The name on the window, shown on the upper left.
     const NAME: &'static str;
 
@@ -125,7 +126,7 @@ pub trait Window: Send + Sync + Default {
 macro_rules! impl_show {
     () => {
         /// Shows the window on screen.
-        fn show(&mut self, ctx: &CtxRef) -> ShowResult {
+        fn show(&mut self, ctx: &Context) -> ShowResult {
             let mut open = self.is_open();
             let mut result = ShowResult::None;
 
@@ -313,7 +314,7 @@ pub trait MemoryWindow: Window {
     }
 
     /// Shows the window on screen.
-    fn show(&mut self, ctx: &CtxRef, memory: &Memory) -> ShowResult {
+    fn show(&mut self, ctx: &Context, memory: &Memory) -> ShowResult {
         let mut open = self.is_open();
         let mut result = ShowResult::None;
 
@@ -342,7 +343,7 @@ pub trait MemoryWindow: Window {
     ) where
         Self: 'static,
     {
-        match self_.show(egui_ctx.ctx(), &memory) {
+        match self_.show(egui_ctx.get(), &memory) {
             ShowResult::Ok => {
                 for mut polytope in query.iter_mut() {
                     self_.action(polytope.as_mut());
@@ -504,7 +505,7 @@ pub trait DuoWindow: Window {
     }
 
     /// Shows the window on screen.
-    fn show(&mut self, ctx: &CtxRef, polytope: &Concrete, memory: &Memory) -> ShowResult {
+    fn show(&mut self, ctx: &Context, polytope: &Concrete, memory: &Memory) -> ShowResult {
         let mut open = self.is_open();
         let mut result = ShowResult::None;
 
@@ -536,7 +537,7 @@ pub trait DuoWindow: Window {
         Self: 'static,
     {
         for mut polytope in query.iter_mut() {
-            match self_.show(egui_ctx.ctx(), &polytope, &memory) {
+            match self_.show(egui_ctx.get(), &polytope, &memory) {
                 ShowResult::Ok => {
                     self_.action(polytope.as_mut(), &memory);
                     self_.name_action(&mut poly_name.0, &memory);
@@ -567,6 +568,7 @@ impl<T: DuoWindow + 'static> Plugin for DuoWindowPlugin<T> {
 }
 
 /// A window that allows the user to build a dual with a specified hypersphere.
+#[derive(Resource)]
 pub struct DualWindow {
     /// Whether the window is open.
     open: bool,
@@ -620,7 +622,7 @@ impl UpdateWindow for DualWindow {
             ui.add(
                 egui::DragValue::new(&mut self.radius)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX),
+                    .range(0.0..=Float::MAX),
             );
 
             ui.label("Radius");
@@ -645,6 +647,7 @@ impl UpdateWindow for DualWindow {
 }
 
 /// A window that allows the user to build a pyramid with a specified apex.
+#[derive(Resource)]
 pub struct PyramidWindow {
     /// Whether the window is open.
     open: bool,
@@ -694,7 +697,7 @@ impl UpdateWindow for PyramidWindow {
             ui.add(
                 egui::DragValue::new(&mut self.height)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX),
+                    .range(0.0..=Float::MAX),
             );
 
             ui.label("Height");
@@ -719,6 +722,7 @@ impl UpdateWindow for PyramidWindow {
 }
 
 /// Allows the user to build a prism with a given height.
+#[derive(Resource)]
 pub struct PrismWindow {
     /// Whether the window is open.
     open: bool,
@@ -754,7 +758,7 @@ impl PlainWindow for PrismWindow {
             ui.add(
                 egui::DragValue::new(&mut self.height)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX),
+                    .range(0.0..=Float::MAX),
             );
         });
     }
@@ -770,6 +774,7 @@ impl Default for PrismWindow {
 }
 
 /// Allows the user to build a tegum with the specified apices and a height.
+#[derive(Resource)]
 pub struct TegumWindow {
     /// Whether the window is open.
     open: bool,
@@ -828,7 +833,7 @@ impl UpdateWindow for TegumWindow {
             ui.add(
                 egui::DragValue::new(&mut self.height)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX),
+                    .range(0.0..=Float::MAX),
             );
             ui.label("Height");
         });
@@ -858,6 +863,7 @@ impl UpdateWindow for TegumWindow {
 
 /// Allows the user to select an antiprism from a specified hypersphere and a
 /// given height.
+#[derive(Resource)]
 pub struct AntiprismWindow {
     /// The info about the hypersphere we use to get from one base to another.
     dual: DualWindow,
@@ -918,7 +924,7 @@ impl UpdateWindow for AntiprismWindow {
             ui.add(
                 egui::DragValue::new(&mut self.dual.radius)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX),
+                    .range(0.0..=Float::MAX),
             );
             ui.label("Radius");
         });
@@ -954,6 +960,7 @@ impl UpdateWindow for AntiprismWindow {
 
 /// A window that allows a user to build a duopyramid, either using the
 /// polytopes in memory or the currently loaded one.
+#[derive(Resource)]
 pub struct DuopyramidWindow {
     /// Whether the window is currently open.
     open: bool,
@@ -1036,13 +1043,13 @@ impl DuoWindow for DuopyramidWindow {
         ui.add(PointWidget::new(&mut self.offsets[1], "Offset #2"));
 
         ui.horizontal(|ui| {
-            ui.add(egui::DragValue::new(&mut self.height).clamp_range(0.0..=Float::MAX));
+            ui.add(egui::DragValue::new(&mut self.height).range(0.0..=Float::MAX));
             ui.label("Height");
         });
 
         if ui.add(
-            egui::Button::new("Try to make orbiform")
-                .enabled(!matches!(self.slots[0], Slot::None) && !matches!(self.slots[1], Slot::None))
+            egui::Button::selectable(
+                !matches!(self.slots[0], Slot::None) && !matches!(self.slots[1], Slot::None),"Try to make orbiform")
             ).clicked() {
                 if let Some(circum0) = match self.slots[0] {
                     Slot::Loaded => polytope,
@@ -1090,7 +1097,7 @@ impl DuoWindow for DuopyramidWindow {
 
 /// A window that allows a user to build a duoprism, either using the polytopes
 /// in memory or the currently loaded one.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct DuoprismWindow {
     /// Whether the window is open.
     open: bool,
@@ -1148,6 +1155,7 @@ impl DuoWindow for DuoprismWindow {
 
 /// A window that allows a user to build a duotegum, either using the polytopes
 /// in memory or the currently loaded one.
+#[derive(Resource)]
 pub struct DuotegumWindow {
     /// Whether the window is currently open.
     open: bool,
@@ -1229,7 +1237,7 @@ impl DuoWindow for DuotegumWindow {
 
 /// A window that allows a user to build a duocomb, either using the polytopes
 /// in memory or the currently loaded one.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct DuocombWindow {
     /// Whether the window is open.
     open: bool,
@@ -1287,7 +1295,7 @@ impl DuoWindow for DuocombWindow {
 
 /// A window that allows a user to build a star product, either using the polytopes
 /// in memory or the currently loaded one.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct StarWindow {
     /// Whether the window is open.
     open: bool,
@@ -1345,7 +1353,7 @@ impl DuoWindow for StarWindow {
 
 /// A window that allows a user to build a compound, either using the polytopes
 /// in memory or the currently loaded one.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct CompoundWindow {
     /// Whether the window is open.
     open: bool,
@@ -1404,7 +1412,7 @@ impl DuoWindow for CompoundWindow {
 }
 
 /// A window to configure a truncation of the polytope.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct TruncateWindow {
     /// Whether the window is open.
     open: bool,
@@ -1497,7 +1505,7 @@ impl UpdateWindow for TruncateWindow {
 }
 
 /// A window that scales a polytope.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct ScaleWindow {
     /// Whether the window is open.
     open: bool,
@@ -1546,6 +1554,7 @@ pub enum GroupEnum2 {
 }
 
 /// A window that lets the user set settings for faceting.
+#[derive(Resource)]
 pub struct FacetingSettings {
     /// Whether the window is open.
     open: bool,
@@ -1679,7 +1688,7 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.max_facet_types)
                     .speed(0.02)
-                    .clamp_range(0..=usize::MAX)
+                    .range(0..=usize::MAX)
             );
         });
         if self.show_advanced_settings {
@@ -1688,7 +1697,7 @@ impl MemoryWindow for FacetingSettings {
                 ui.add(
                     egui::DragValue::new(&mut self.max_per_hyperplane)
                         .speed(200)
-                        .clamp_range(0..=usize::MAX)
+                        .range(0..=usize::MAX)
                 );
             });
         }
@@ -1793,7 +1802,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::Checkbox::new(&mut self.do_min_edge_length, "")
             );
             ui.add(
-                egui::DragValue::new(&mut self.min_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
+                egui::DragValue::new(&mut self.min_edge_length).range(0.0..=Float::MAX).speed(0.01)
             );
             ui.label("Min edge length");
         });
@@ -1803,7 +1812,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::Checkbox::new(&mut self.do_max_edge_length, "")
             );
             ui.add(
-                egui::DragValue::new(&mut self.max_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
+                egui::DragValue::new(&mut self.max_edge_length).range(0.0..=Float::MAX).speed(0.01)
             );
             ui.label("Max edge length");
         });
@@ -1814,7 +1823,7 @@ impl MemoryWindow for FacetingSettings {
                     egui::Checkbox::new(&mut self.do_min_inradius, "")
                 );
                 ui.add(
-                    egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
+                    egui::DragValue::new(&mut self.min_inradius).range(0.0..=Float::MAX).speed(0.001)
                 );
                 ui.label("Min inradius");
             });
@@ -1824,7 +1833,7 @@ impl MemoryWindow for FacetingSettings {
                     egui::Checkbox::new(&mut self.do_max_inradius, "")
                 );
                 ui.add(
-                    egui::DragValue::new(&mut self.max_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
+                    egui::DragValue::new(&mut self.max_inradius).range(0.0..=Float::MAX).speed(0.001)
                 );
                 ui.label("Max inradius");
             });
@@ -1876,7 +1885,7 @@ impl MemoryWindow for FacetingSettings {
             ui.radio_value(&mut self.save_to_file, true, "Save to file");
             ui.label("Path:");
             ui.add(
-                egui::TextEdit::singleline(&mut self.file_path).enabled(self.save_to_file)
+                egui::TextEdit::singleline(&mut self.file_path).interactive(self.save_to_file)
             );
         });
 
@@ -1890,7 +1899,7 @@ impl MemoryWindow for FacetingSettings {
 
 
 /// Rotation window for Transform tab
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct RotateWindow {
     /// Whether the window is open.
     open: bool,
@@ -1962,11 +1971,11 @@ impl UpdateWindow for RotateWindow {
             for s in (r+1)..=self.rank-1 {
                 ui.horizontal(|ui| {
                     if self.degcheck {
-                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(1.0).clamp_range::<f64>(0.0..=360.0));
+                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(1.0).range::<f64>(0.0..=360.0));
                         ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
                     }
                     else{
-                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
+                        ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(0.01).range::<f64>(0.0..=6.283185307179586));
                         ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
                     }
                     index += 1; //setting index value
@@ -1995,6 +2004,7 @@ impl UpdateWindow for RotateWindow {
 
 /// Plane rotation window (Rotate with plane... window)
 
+#[derive(Resource)]
 pub struct PlaneWindow {
     /// Whether the window is open.
     open: bool,
@@ -2157,10 +2167,10 @@ impl UpdateWindow for PlaneWindow {
         ui.horizontal(|ui| {
             
             if self.degcheck {
-            ui.add(egui::DragValue::new(&mut self.rot).speed(1.0).clamp_range::<f64>(0.0..=360.0));
+            ui.add(egui::DragValue::new(&mut self.rot).speed(1.0).range::<f64>(0.0..=360.0));
             }
             else{
-                ui.add(egui::DragValue::new(&mut self.rot).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
+                ui.add(egui::DragValue::new(&mut self.rot).speed(0.01).range::<f64>(0.0..=6.283185307179586));
             }
             
             ui.label("Rotation"); 
@@ -2203,6 +2213,7 @@ impl UpdateWindow for PlaneWindow {
 }
 
 // Translation window
+#[derive(Resource)]
 pub struct TranslateWindow {
     /// Whether the window is open
     open: bool,

@@ -2,7 +2,7 @@
 
 use std::cmp::*;
 
-use bevy::prelude::{Query, Res, ResMut};
+use bevy::prelude::{Query, Res, ResMut, Resource};
 use bevy_egui::{egui, EguiContext};
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 use super::main_window::PolyName;
 
 /// Represents the memory slots to store polytopes.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Memory {
     pub slots: Vec<Option<(Concrete, Option<String>)>>,
     pub start_page: usize,
@@ -65,8 +65,8 @@ impl Memory {
             .open(open)
             .scroll(true)
             .default_width(260.0)
-            .show(egui_ctx.ctx(), |ui| {
-            egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(egui_ctx.get(), |ui| {
+            egui::containers::ScrollArea::vertical().show(ui, |ui| {
                 
                 ui.horizontal(|ui| {
                     if ui.button("Clear memory").clicked() {
@@ -82,7 +82,7 @@ impl Memory {
                     ui.add(
                         egui::DragValue::new(&mut slots_per_page.0)
                         .speed(0.04)
-                        .clamp_range(1..=std::usize::MAX)
+                        .range(1..=usize::MAX)
                     );
                 });
     
@@ -164,7 +164,7 @@ impl Memory {
                         egui::DragValue::new(&mut self.start_page)
                         .suffix(format!(" - {}", self.end_page as isize - 1))
                         .speed(0.4)
-                        .clamp_range(0..=if len < spp {0} else {len-spp})
+                        .range(0..=if len < spp {0} else {len-spp})
                     );
                     ui.label(format!(
                         "/  {}",

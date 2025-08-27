@@ -2,6 +2,7 @@
 
 use crate::{Point, EPS};
 use approx::abs_diff_eq;
+use bevy::app::PluginGroupBuilder;
 use bevy_egui::egui::{self, Ui, Widget};
 
 pub mod camera;
@@ -17,15 +18,15 @@ pub mod right_panel;
 pub struct MiratopePlugins;
 
 impl bevy::prelude::PluginGroup for MiratopePlugins {
-    fn build(&mut self, group: &mut bevy::app::PluginGroupBuilder) {
-        group
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
             .add(camera::InputPlugin)
             .add(config::ConfigPlugin)
             .add(window::WindowPlugin)
             .add(library::LibraryPlugin)
             .add(main_window::MainWindowPlugin)
             .add(top_panel::TopPanelPlugin)
-            .add(right_panel::RightPanelPlugin);
+            .add(right_panel::RightPanelPlugin)
     }
 }
 

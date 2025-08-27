@@ -1,23 +1,27 @@
 [package]
 name = "miratope-core"
-version = "0.4.16"
-edition = "2018"
+version = "0.5.0"
+edition = "2024"
 
 [dependencies]
 vec-like = { path = "../vec-like" }
-approx = "0.5"
-dyn-clone = "1.0"
-gcd = "2.0"
-itertools = "0.10"
-nalgebra = { version = "0.29", features = ["serde-serialize"] }
-ordered-float = "2.4"
+approx = "0.5.1"
+gcd = "2.3.0"
+itertools = "0.14"
+nalgebra = { version = "0.34", features = ["serde-serialize"] }
+ordered-float = "5.0.0"
 partitions = "0.2.4"
-petgraph = "0.6"
-rayon = "1.5"
-ron = "0.6"
+petgraph = "0.8.2"
+rayon = "1.11"
 serde = { version = "1.0", features = ["derive"] }
-strum = "0.21"
-strum_macros = "0.21"
-unchecked_unwrap = "3"
-xml-rs = "0.8"
-zip = "0.5"
+strum = "0.27.2"
+strum_macros = "0.27.2"
+unchecked_unwrap = "4"
+xml-rs = "1.0.0"
+zip = "4.5"
+
+# enables extra traits needed for the bevy frontend
+[dependencies.bevy]
+version = "0.16.1"
+default-features = false
+optional = true

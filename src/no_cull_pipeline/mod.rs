@@ -3,10 +3,9 @@
 //! so that most of the non-convex polytopes work properly.
 
 use bevy::{
-    asset::{Assets, Handle, HandleUntyped},
+    asset::{Assets, Handle, UntypedHandle},
     ecs::bundle::Bundle,
     prelude::{Draw, GlobalTransform, RenderPipelines, StandardMaterial, Transform, Visible},
-    reflect::TypeUuid,
     render::{
         mesh::Mesh,
         pipeline::*,
@@ -15,9 +14,11 @@ use bevy::{
         texture::TextureFormat,
     },
 };
+use bevy::prelude::Shader;
+use bevy::render::render_resource::*;
 
-pub const NO_CULL_PIPELINE_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(PipelineDescriptor::TYPE_UUID, 0x7CAE7047DEE79C84);
+pub const NO_CULL_PIPELINE_HANDLE: UntypedHandle =
+    UntypedHandle::Weak(PipelineDescriptor::TYPE_UUID, 0x7CAE7047DEE79C84); //The whole UUID system seems to have been completely overhauled
 
 pub fn build_no_cull_pipeline(shaders: &mut Assets<Shader>) -> PipelineDescriptor {
     PipelineDescriptor {

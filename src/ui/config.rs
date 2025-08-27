@@ -48,6 +48,7 @@ impl Plugin for ConfigPlugin {
 }
 
 /// Stores the file path to the configuration file in Miratope.
+#[derive(Resource)]
 pub struct ConfigPath(PathBuf);
 
 impl AsRef<Path> for ConfigPath {
@@ -57,7 +58,7 @@ impl AsRef<Path> for ConfigPath {
 }
 
 /// The path to the Miratope library.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Resource)]
 pub struct LibPath(String);
 
 impl Default for LibPath {
@@ -84,33 +85,33 @@ pub struct BgColor(f32, f32, f32);
 impl BgColor {
     /// Makes a new `BgColor` from the given `ClearColor`.
     pub fn new(clear_color: &ClearColor) -> Self {
-        let color = clear_color.0;
-        Self(color.r(), color.g(), color.b())
+        let color:Srgba = (**clear_color).into();
+        Self(color.red, color.green, color.blue)
     }
 
     /// Makes a new `ClearColor` from the given `BgColor`.
     pub fn clear_color(&self) -> ClearColor {
-        ClearColor(Color::rgb(self.0, self.1, self.2))
+        ClearColor(Color::srgb(self.0, self.1, self.2))
     }
 }
 
 /// The mesh color of the polytope in sRGB.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Resource)]
 pub struct MeshColor(pub Color);
 
 impl Default for MeshColor {
     fn default() -> MeshColor {
-        MeshColor(Color::rgb_u8(255, 255, 255))
+        MeshColor(Color::srgb_u8(255, 255, 255))
     }
 }
 
 /// The wireframe color of the polytope in sRGB.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Resource)]
 pub struct WfColor(pub Color);
 
 impl Default for WfColor {
     fn default() -> WfColor {
-        WfColor(Color::rgb_u8(150, 150, 150))
+        WfColor(Color::srgb_u8(150, 150, 150))
     }
 }
 
@@ -130,7 +131,7 @@ impl LightMode {
 }
 
 /// Number of memory slots per page.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Resource)]
 pub struct SlotsPerPage(pub usize);
 
 impl Default for SlotsPerPage {
@@ -243,7 +244,7 @@ fn save_config(
     slots_per_page: Res<'_, SlotsPerPage>,
 ) {
     // If the application is being exited:
-    if exit.iter().next().is_some() {
+    if exit.read().next().is_some() {
         let config = Config {
             background_color: BgColor::new(background_color.as_ref()),
             mesh_color: mesh_color.clone(),

@@ -12,7 +12,6 @@
 //! A tool for building and visualizing polytopes. Still in alpha development.
 
 use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
 use bevy::render::{camera::PerspectiveProjection, pipeline::PipelineDescriptor};
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
@@ -69,7 +68,7 @@ fn main() {
         })
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
-        .add_plugin(EguiPlugin)
+        .add_plugins(EguiPlugin::default())
         .add_plugins(MiratopePlugins)
         .add_startup_system(setup.system())
         .run();
@@ -87,23 +86,21 @@ fn setup(
     let poly = Concrete::from_off(include_str!("default.off")).unwrap();
 
     // Disables backface culling.
-    pipelines.set_untracked(
+    pipelines.remove_untracked(
         no_cull_pipeline::NO_CULL_PIPELINE_HANDLE,
-        no_cull_pipeline::build_no_cull_pipeline(&mut shaders),
     );
 
     // Selected object (unused as of yet).
-    materials.set_untracked(
-        WIREFRAME_SELECTED_MATERIAL,
-        Color::rgb_u8(126, 192, 255).into(),
+    materials.remove_untracked(
+        Color::srgb_u8(126, 192, 255).into(),
     );
 
     // Wireframe material.
-    let wf_material = materials.set(WIREFRAME_UNSELECTED_MATERIAL, Color::rgb_u8(150, 150, 150).into());
+    let wf_material = materials.add(WIREFRAME_UNSELECTED_MATERIAL, Srgba::rgb_u8(150, 150, 150).into());
 
     // Mesh material.
     let mesh_material = materials.add(StandardMaterial {
-        base_color: Color::rgb_u8(255, 255, 255),
+        base_color: Color::srgb_u8(255, 255, 255),
         metallic: 0.0,
         ..Default::default()
     });
@@ -114,16 +111,15 @@ fn setup(
     CameraInputEvent::reset(&mut cam_anchor, &mut cam);
 
     commands
-        .spawn()
         // Mesh
-        .insert_bundle(PbrNoBackfaceBundle {
+        .spawn(PbrNoBackfaceBundle {
             mesh: meshes.add(poly.mesh(ProjectionType::Perspective)),
             material: mesh_material,
             ..Default::default()
         })
         // Wireframe
         .with_children(|cb| {
-            cb.spawn().insert_bundle(PbrNoBackfaceBundle {
+            cb.spawn(PbrNoBackfaceBundle {
                 mesh: meshes.add(poly.wireframe(ProjectionType::Perspective)),
                 material: wf_material,
                 ..Default::default()
@@ -134,11 +130,10 @@ fn setup(
 
     // Camera anchor
     commands
-        .spawn()
-        .insert_bundle((GlobalTransform::default(), cam_anchor))
+        .spawn((GlobalTransform::default(), cam_anchor))
         .with_children(|cb| {
             // Camera
-            cb.spawn_bundle(PerspectiveCameraBundle {
+            cb.spawn(PerspectiveCameraBundle {
                 transform: cam,
                 perspective_projection: PerspectiveProjection {
                     near: 0.01,
@@ -148,7 +143,7 @@ fn setup(
                 ..Default::default()
             });
             // Light source
-            cb.spawn_bundle(PointLightBundle {
+            cb.spawn(PointLightBundle {
                 transform: Transform::from_translation(Vec3::new(-5., 5., 50.)),
                 point_light: PointLight {
                     intensity: 10000.,
@@ -160,7 +155,7 @@ fn setup(
         });
 }
 
-const WIREFRAME_SELECTED_MATERIAL: HandleUntyped =
-    HandleUntyped::weak_from_u64(StandardMaterial::TYPE_UUID, 0x82A3A5DD3A34CC21);
-const WIREFRAME_UNSELECTED_MATERIAL: HandleUntyped =
-    HandleUntyped::weak_from_u64(StandardMaterial::TYPE_UUID, 0x82A3A5DD3A34CC22);
+const WIREFRAME_SELECTED_MATERIAL: UntypedHandle =
+    UntypedHandle::weak_from_u64(StandardMaterial::TYPE_UUID, 0x82A3A5DD3A34CC21);
+const WIREFRAME_UNSELECTED_MATERIAL: UntypedHandle =
+    UntypedHandle::weak_from_u64(StandardMaterial::TYPE_UUID, 0x82A3A5DD3A34CC22);

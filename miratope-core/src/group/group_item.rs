@@ -74,7 +74,7 @@ unsafe impl<T: Float> Wrapper<T> for OrderedFloat<T> {
 
 unsafe impl<T: Float, R: Dim, C: Dim> Wrapper<OMatrix<T, R, C>> for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn from_inner(inner: OMatrix<T, R, C>) -> Self {
         Self(inner)
@@ -150,7 +150,7 @@ impl GroupItem for () {
     fn mul_assign(&mut self, _: &()) {}
 }
 
-impl<T: Float> GroupItem for T {
+impl<T: Float + ordered_float::FloatCore> GroupItem for T {
     type Dim = ();
     type FuzzyOrd = OrderedFloat<T>;
 
