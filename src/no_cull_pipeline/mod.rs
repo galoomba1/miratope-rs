@@ -2,26 +2,33 @@
 //! [backface culling](https://en.wikipedia.org/wiki/Back-face_culling), needed
 //! so that most of the non-convex polytopes work properly.
 
+use std::default::Default;
+use std::any::TypeId;
 use bevy::{
-    asset::{Assets, Handle, UntypedHandle},
+    asset::{Assets, UntypedHandle, UntypedAssetId, uuid::Uuid,},
     ecs::bundle::Bundle,
-    prelude::{Draw, GlobalTransform, RenderPipelines, StandardMaterial, Transform, Visible},
+    prelude::{Draw, GlobalTransform, RenderPipelines, Transform, Visible, Shader,},
     render::{
-        mesh::Mesh,
-        pipeline::*,
         render_graph::base::MainPass,
         shader::{Shader, ShaderStage, ShaderStages},
-        texture::TextureFormat,
+        render_resource::*,
     },
 };
-use bevy::prelude::Shader;
-use bevy::render::render_resource::*;
+use bevy::core_pipeline::core_3d::graph::Node3d;
+use bevy::prelude::Visibility;
+use crate::mesh::{HandledMaterial, HandledMesh};
 
+//This constant is probably not needed. Find a way to remove it
 pub const NO_CULL_PIPELINE_HANDLE: UntypedHandle =
-    UntypedHandle::Weak(PipelineDescriptor::TYPE_UUID, 0x7CAE7047DEE79C84); //The whole UUID system seems to have been completely overhauled
-
-pub fn build_no_cull_pipeline(shaders: &mut Assets<Shader>) -> PipelineDescriptor {
-    PipelineDescriptor {
+    UntypedHandle::Weak(UntypedAssetId::Uuid {
+        type_id: TypeId::of::<RenderPipelineDescriptor>(),
+        uuid: Uuid::from_u128(0x7CAE7047DEE79C847CAE7047DEE79C84)
+    });
+//this function will probably need a bunch of extra work. Also, do something to shaders
+pub fn build_no_cull_pipeline(shaders: &mut Assets<Shader>) -> RenderPipelineDescriptor {
+    RenderPipelineDescriptor {
+        label: None,
+        layout: vec![],
         primitive: PrimitiveState {
             front_face: FrontFace::Ccw,
             cull_mode: None,
@@ -43,43 +50,48 @@ pub fn build_no_cull_pipeline(shaders: &mut Assets<Shader>) -> PipelineDescripto
                 clamp: 0.0,
             },
         }),
-        color_target_states: vec![ColorTargetState {
-            format: Default::default(),
-            blend: Some(BlendState {
-                alpha: BlendComponent {
-                    src_factor: BlendFactor::One,
-                    dst_factor: BlendFactor::One,
-                    operation: BlendOperation::Add,
-                },
-                color: BlendComponent {
-                    src_factor: BlendFactor::SrcAlpha,
-                    dst_factor: BlendFactor::OneMinusSrcAlpha,
-                    operation: BlendOperation::Add,
-                },
-            }),
-            write_mask: ColorWrite::ALL,
-        }],
-        ..PipelineDescriptor::new(ShaderStages {
-            vertex: shaders.add(Shader::from_glsl(
-                ShaderStage::Vertex,
-                include_str!("forward.vert"),
-            )),
-            fragment: Some(shaders.add(Shader::from_glsl(
-                ShaderStage::Fragment,
-                include_str!("forward.frag"),
-            ))),
-        })
+        vertex: VertexState{    //"forward.vert" needs to go in this somewhere
+            shader: Default::default(),
+            shader_defs: vec![],
+            entry_point: Default::default(),
+            buffers: vec![],
+        },
+        fragment: Some(FragmentState{   //"forward.frag" needs to go in this somewhere
+            shader: Default::default(),
+            shader_defs: vec![],
+            entry_point: Default::default(),
+            targets: vec![Some(ColorTargetState {
+                format: Default::default(),
+                blend: Some(BlendState {
+                    alpha: BlendComponent {
+                        src_factor: BlendFactor::One,
+                        dst_factor: BlendFactor::One,
+                        operation: BlendOperation::Add,
+                    },
+                    color: BlendComponent {
+                        src_factor: BlendFactor::SrcAlpha,
+                        dst_factor: BlendFactor::OneMinusSrcAlpha,
+                        operation: BlendOperation::Add,
+                    },
+                }),
+                write_mask: ColorWrites::ALL,
+            })],
+        }),
+
+        push_constant_ranges: vec![],
+        multisample: Default::default(),
+        zero_initialize_workgroup_memory: false,
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle)] //the items here are changed to the most likely counterparts. It's probably not the right way to do this
 pub struct PbrNoBackfaceBundle {
-    pub mesh: Handle<Mesh>,
-    pub material: Handle<StandardMaterial>,
-    pub main_pass: MainPass,
+    pub mesh: HandledMesh,
+    pub material: HandledMaterial,
+    pub main_pass: Node3d::MainOpaquePass,
     pub draw: Draw,
-    pub visible: Visible,
-    pub render_pipelines: RenderPipelines,
+    pub visible: Visibility,
+    pub render_pipelines: RenderPipeline, //was RenderPipelines, that s is probably important
     pub transform: Transform,
     pub global_transform: GlobalTransform,
 }
@@ -87,7 +99,7 @@ pub struct PbrNoBackfaceBundle {
 impl Default for PbrNoBackfaceBundle {
     fn default() -> Self {
         Self {
-            render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+            render_pipelines: RenderPipeline::from_pipelines(vec![RenderPipeline::new(
                 NO_CULL_PIPELINE_HANDLE.typed(),
             )]),
             mesh: Default::default(),

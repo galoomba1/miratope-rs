@@ -3,13 +3,10 @@
 use crate::Concrete;
 
 use bevy::prelude::*;
-use bevy_egui::{
-    egui,
-    EguiContext,
-};
+use bevy_egui::{egui, EguiContexts};
 use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
-
+use crate::ui::top_panel::SectionDirectionVec;
 use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName};
 
 #[derive(Clone, Copy, Debug)]
@@ -139,11 +136,10 @@ impl Plugin for RightPanelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ElementTypesRes>()
             // The top panel must be shown first.
-            .add_system(
+            .add_systems(Update,
                 show_right_panel
-                    .system()
-                    .label("show_right_panel")
-                    .after("show_top_panel"),
+                    //.label("show_right_panel")
+                    //.after("show_top_panel"),
             );
     }
 }
@@ -152,21 +148,21 @@ impl Plugin for RightPanelPlugin {
 #[allow(clippy::too_many_arguments)]
 pub fn show_right_panel(
     // Info about the application state.
-    egui_ctx: Res<'_, EguiContext>,
+    mut egui_ctx: EguiContexts<'_, '_>,
     mut query: Query<'_, '_, &mut Concrete>,
     mut poly_name: ResMut<'_, PolyName>,
 
     // The Miratope resources controlled by the right panel.
     mut element_types: ResMut<'_, ElementTypesRes>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>,
+    mut section_direction: ResMut<'_, SectionDirectionVec>,
     section_state: Res<'_, SectionState>,
 
-) {
+) -> Result {
     // The right panel.
     egui::SidePanel::right("right_panel")
         .default_width(300.0)
         .max_width(450.0)
-        .show(egui_ctx.get(), |ui| {
+        .show(egui_ctx.ctx_mut()?, |ui| {
             
             ui.horizontal(|ui| {
                 if ui.add(egui::Button::selectable(!element_types.main, "Generate")).clicked() {
@@ -250,10 +246,10 @@ pub fn show_right_panel(
                                 }
 
                                 if let SectionState::Active{..} = section_state.clone() {
-                                    if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
+                                    if section_direction.0[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {
-                                                section_direction[0] = SectionDirection(Vector::from(Point::from(
+                                                section_direction.0[0] = SectionDirection(Vector::from(Point::from(
                                                     Subspace::from_points(element.vertices.iter())
                                                         .project(&Point::zeros(rank-1))
                                                         .normalize()
@@ -318,4 +314,5 @@ pub fn show_right_panel(
                 }); 
             }
     });
+    Ok(())
 }

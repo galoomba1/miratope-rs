@@ -1,7 +1,8 @@
 //! Contains the code for the "special library", i.e. the hardcoded families of
 //! polytopes in the Miratope library.
 
-use egui::Ui;
+use bevy_egui::egui::Ui;
+use bevy_egui::egui;
 use serde::{Deserialize, Serialize};
 
 use crate::Concrete;

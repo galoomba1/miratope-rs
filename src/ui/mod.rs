@@ -3,7 +3,8 @@
 use crate::{Point, EPS};
 use approx::abs_diff_eq;
 use bevy::app::PluginGroupBuilder;
-use bevy_egui::egui::{self, Ui, Widget};
+use bevy::prelude::Resource;
+use bevy_egui::egui::{self, Ui, Widget, Visuals};
 
 pub mod camera;
 pub mod config;
@@ -16,7 +17,7 @@ pub mod right_panel;
 
 /// All of the plugins specific to Miratope.
 pub struct MiratopePlugins;
-
+// TODO: change all these plugins into one, so that there can be a chain() of the systems related to the UI
 impl bevy::prelude::PluginGroup for MiratopePlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
@@ -108,3 +109,7 @@ impl<'a> Widget for UnitPointWidget<'a> {
         .response
     }
 }
+
+/// The currently used egui::Visuals. Needed as a newtype to make into a Resource
+#[derive(Resource)]
+pub struct CurrentVisuals(Visuals);

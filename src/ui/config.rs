@@ -8,9 +8,10 @@ use std::{
 };
 
 use bevy::{app::AppExit, prelude::*};
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{egui, EguiContexts};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use crate::ui::CurrentVisuals;
 
 /// The default path in which we look for the Miratope library.
 const DEFAULT_PATH: &str = "./lib";
@@ -40,10 +41,10 @@ impl Plugin for ConfigPlugin {
             .insert_resource(config.background_color.clear_color())
             .insert_resource(config.mesh_color)
             .insert_resource(config.wf_color)
-            .insert_resource(config.light_mode.visuals())
+            .insert_resource(CurrentVisuals(config.light_mode.visuals()))
             .insert_resource(config.slots_per_page)
-            .add_system(update_visuals.system())
-            .add_system_to_stage(CoreStage::Last, save_config.system());
+            .add_systems(Update, update_visuals)
+            .add_systems(Last, save_config);
     }
 }
 
@@ -143,10 +144,11 @@ impl Default for SlotsPerPage {
 
 /// Updates the application appearance whenever the visuals are changed. This
 /// occurs at application startup and whenever the user toggles light/dark mode.
-fn update_visuals(egui_ctx: Res<'_, EguiContext>, visuals: Res<'_, egui::Visuals>) {
+fn update_visuals(mut egui_ctx: EguiContexts<'_, '_>, visuals: Res<'_, CurrentVisuals>) -> Result {
     if visuals.is_changed() {
-        egui_ctx.ctx().set_visuals(visuals.clone());
+        egui_ctx.ctx_mut()?.set_visuals(visuals.0.clone());
     }
+    Ok(())
 }
 
 /// A monolithic struct that contains all of the configuration data for
@@ -240,7 +242,7 @@ fn save_config(
     background_color: Res<'_, ClearColor>,
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
-    visuals: Res<'_, egui::Visuals>,
+    visuals: Res<'_, CurrentVisuals>,
     slots_per_page: Res<'_, SlotsPerPage>,
 ) {
     // If the application is being exited:
@@ -249,7 +251,7 @@ fn save_config(
             background_color: BgColor::new(background_color.as_ref()),
             mesh_color: mesh_color.clone(),
             wf_color: wf_color.clone(),
-            light_mode: LightMode(!visuals.dark_mode),
+            light_mode: LightMode(!visuals.0.dark_mode),
             slots_per_page: slots_per_page.clone(),
         };
 

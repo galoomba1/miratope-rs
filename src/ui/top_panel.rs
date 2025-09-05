@@ -2,13 +2,13 @@
 
 use std::path::PathBuf;
 
-use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName, config::{MeshColor, WfColor, SlotsPerPage}};
+use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName, config::{MeshColor, WfColor, SlotsPerPage}, CurrentVisuals};
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
 use bevy::ecs::change_detection::ResMut;
-use bevy_egui::{egui::{self, containers::menu, Ui}, EguiContext};
-use egui::MenuBar;
+use bevy_egui::{egui::{self, Ui, MenuBar}, EguiContexts};
+use bevy_egui::egui::{Visuals};
 use miratope_core::{conc::{ConcretePolytope, faceting::GroupEnum, symmetry::Vertices}, file::FromFile, float::Float as Float2, Polytope, abs::Ranked};
 
 /// The plugin in charge of everything on the top panel.
@@ -18,19 +18,18 @@ impl Plugin for TopPanelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FileDialogState>()
             .init_resource::<SectionState>()
-            .init_resource::<Vec<SectionDirection>>()
+            .init_resource::<SectionDirectionVec>()
             .init_resource::<Memory>()
             .init_resource::<ShowMemory>()
             .init_resource::<ShowHelp>()
             .init_resource::<ExportMemory>()
             .init_non_send_resource::<FileDialogToken>()
-            .add_system(file_dialog.system())
+            .add_systems(Update, file_dialog)
             // Windows must be the first thing shown.
-            .add_system(
+            .add_systems(Update,
                 show_top_panel
-                    .system()
-                    .label("show_top_panel")
-                    .after("show_windows"),
+                    //.label("show_top_panel")
+                    //.after("show_windows"),
             );
     }
 }
@@ -147,6 +146,14 @@ impl Default for SectionDirection {
     fn default() -> Self {
         Self(Vector::zeros(0))
     }
+}
+
+/// A vector of SectionDirections. Needed for usage as a resource
+#[derive(Resource)]
+pub struct  SectionDirectionVec(pub(crate) Vec<SectionDirection>);
+
+impl Default for SectionDirectionVec{
+    fn default() -> Self { Self(Vec::new()) }
 }
 
 /// Stores whether the memory window is shown.
@@ -296,7 +303,7 @@ pub fn file_dialog(
 }
 
 /// Whether the hotkey to enable "advanced" options is enabled.
-pub fn advanced(keyboard: &Input<KeyCode>) -> bool {
+pub fn advanced(keyboard: &ButtonInput<KeyCode>) -> bool {
     keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight)
 }
 
@@ -333,13 +340,13 @@ macro_rules! element_sort {
 #[allow(clippy::too_many_arguments)]
 pub fn show_top_panel(
     // Info about the application state.
-    egui_ctx: Res<'_, EguiContext>,
+    mut egui_ctx: EguiContexts<'_, '_>,
     mut query: Query<'_, '_, &mut Concrete>,
-    keyboard: Res<'_, Input<KeyCode>>,
+    keyboard: Res<'_, ButtonInput<KeyCode>>,
 
     // The Miratope resources controlled by the top panel.
     mut section_state: ResMut<'_, SectionState>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>,
+    mut section_direction: ResMut<'_, SectionDirectionVec>,
     mut file_dialog_state: ResMut<'_, FileDialogState>,
     mut projection_type: ResMut<'_, ProjectionType>,
     mut poly_name: ResMut<'_, PolyName>,
@@ -350,7 +357,7 @@ pub fn show_top_panel(
     mut colors: (ResMut<'_, ClearColor>, ResMut<'_, MeshColor>, ResMut<'_, WfColor>),
     mut slots_per_page: ResMut<'_, SlotsPerPage>,
 
-    mut visuals: ResMut<'_, egui::Visuals>,
+    mut visuals: ResMut<'_, CurrentVisuals>,
 
     // The different windows that can be shown.
     (
@@ -372,13 +379,13 @@ pub fn show_top_panel(
         mut plane_window,
         mut translate_window,
     ): EguiWindows<'_>,
-) {
-    // The top bar.
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.get(), |ui| {
+) -> Result {
+    // The top bar. There's a lot of borrow nonsense going here
+    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut()?, |ui| {
         MenuBar::new().ui(ui, |ui| {
             
             // Operations on files.
-            menu::menu(ui, "File", |ui| {
+            ui.menu_button("File", |ui| {
                 // Loads a file.
                 if ui.button("Open").clicked() {
                     file_dialog_state.open();
@@ -427,7 +434,7 @@ pub fn show_top_panel(
             }
 
             // Configures the view.
-            menu::menu(ui, "View", |ui| {
+            ui.menu_button("View", |ui| {
                 let mut checked = projection_type.is_orthogonal();
 
                 if ui.checkbox(&mut checked, "Orthogonal projection").clicked() {
@@ -441,7 +448,7 @@ pub fn show_top_panel(
             });
 
             // Prints out properties about the loaded polytope.
-            menu::menu(ui, "Properties", |ui| {
+            ui.menu_button("Properties", |ui| {
                 // Determines the circumsphere of the polytope.
                 if ui.button("Circumsphere").clicked() {
                     if let Some(p) = query.iter_mut().next() {
@@ -531,7 +538,7 @@ pub fn show_top_panel(
                 }
             });
 
-            menu::menu(ui, "Transform", |ui| {
+            ui.menu_button("Transform", |ui| {
             
                 if ui.button("Scale to unit edge length").clicked() {
                     let mut p = query.iter_mut().next().unwrap();
@@ -592,7 +599,7 @@ pub fn show_top_panel(
             });
 
             // Operations on polytopes.
-            menu::menu(ui, "Operations", |ui| {
+            ui.menu_button("Operations", |ui| {
                 // Converts the active polytope into its dual.
                 if advanced(&keyboard) {
                     if ui.button("Dual...").clicked() {
@@ -795,14 +802,14 @@ pub fn show_top_panel(
                             let original_polytope = p.clone();
     
                             section_state.open(original_polytope, poly_name.0.clone(), vec![minmax]);
-                            section_direction.clear();
-                            section_direction.push(SectionDirection{0:direction});
+                            section_direction.0.clear();
+                            section_direction.0.push(SectionDirection{0:direction});
                         }
                     }
                 };
             }
 
-            menu::menu(ui, "Faceting", |ui| {
+            ui.menu_button("Faceting", |ui| {
                 if ui.button("Enumerate facetings").clicked() {
                     if let Some(p) = query.iter_mut().next() {
                         let mut vertices_thing = (Vertices(vec![]), vec![]);
@@ -852,7 +859,7 @@ pub fn show_top_panel(
             if ui.button("Memory").clicked() {
                 show_memory.0 = !show_memory.0;
             }
-            memory.show(&mut query, &mut poly_name, &mut slots_per_page, &egui_ctx, &mut show_memory.0);
+            memory.show(&mut query, &mut poly_name, &mut slots_per_page, egui_ctx, &mut show_memory.0).unwrap();
 
             if ui.button("Help").clicked() {
                 show_help.0 = !show_help.0;
@@ -860,7 +867,7 @@ pub fn show_top_panel(
             egui::Window::new("Help")
                 .open(&mut show_help.0)
                 .resizable(false)
-                .show(egui_ctx.get(), |ui| {
+                .show(egui_ctx.ctx_mut().unwrap(), |ui| {
                     ui.heading("Hotkeys");
                     ui.label("V: toggle faces\nB: toggle wireframe");
                     ui.separator();
@@ -878,7 +885,7 @@ pub fn show_top_panel(
             // Background color picker.
 
             // The current background color.
-            let [r, g, b, a] = colors.0.0.to_srgba().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.0.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new background color.
@@ -901,7 +908,7 @@ pub fn show_top_panel(
             // Mesh color picker.
 
             // The current mesh color.
-            let [r, g, b, a] = colors.1.0.to_srgba().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.1.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new mesh color.
@@ -924,7 +931,7 @@ pub fn show_top_panel(
             // Wireframe color picker.
 
             // The current wireframe color.
-            let [r, g, b, a] = colors.2.0.to_srgba().map(|c| (c * 255.0) as u8);
+            let [r, g, b, a] = colors.2.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
             let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
 
             // The new wireframe color.
@@ -944,15 +951,41 @@ pub fn show_top_panel(
                 );
             }
 
-            // Light/dark mode toggle.
-            if let Some(new_visuals) = visuals.light_dark_small_toggle_button(ui) {
-                *visuals = new_visuals;
+            // Light/dark mode toggle. Probably needs to be manually rebuilt
+            if let Some(new_visuals) = light_dark_small_toggle_button(&visuals.0, ui) {
+                *visuals = CurrentVisuals(new_visuals);
             }
         });
 
         // Shows secondary views below the menu bar.
         show_views(ui, query, &mut poly_name, section_state, section_direction);
     });
+    Ok(())
+}
+
+/// Reconstruction of the light_dark_small_toggle_button function found on egui 0.14 and earlier
+/// Show small toggle-button for light and dark mode.
+#[must_use]
+pub fn light_dark_small_toggle_button(visuals: &Visuals, ui: &mut Ui) -> Option<Visuals> {
+    #![allow(clippy::collapsible_else_if)]
+    if visuals.dark_mode {
+        if ui
+            .add(egui::Button::new("☀").frame(false))
+            .on_hover_text("Switch to light mode")
+            .clicked()
+        {
+            return Some(Visuals::light());
+        }
+    } else {
+        if ui
+            .add(egui::Button::new("🌙").frame(false))
+            .on_hover_text("Switch to dark mode")
+            .clicked()
+        {
+            return Some(Visuals::dark());
+        }
+    }
+    None
 }
 
 /// Shows any secondary views that are active. Currently, just shows the
@@ -962,7 +995,7 @@ fn show_views(
     mut query: Query<'_, '_, &mut Concrete>,
     poly_name: &mut ResMut<'_, PolyName>,
     mut section_state: ResMut<'_, SectionState>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>
+    mut section_direction: ResMut<'_, SectionDirectionVec>
 ) {
     // The cross-section settings.
     if let SectionState::Active {
@@ -1001,7 +1034,7 @@ fn show_views(
                 }
             }
 
-            let mut new_direction = section_direction[i].0.clone();
+            let mut new_direction = section_direction.0[i].0.clone();
 
             ui.horizontal(|ui| {
 
@@ -1017,8 +1050,8 @@ fn show_views(
             
             // Updates the slicing direction.
             #[allow(clippy::float_cmp)]
-            if section_direction[i].0 != new_direction {
-                section_direction[i].0 = new_direction;
+            if section_direction.0[i].0 != new_direction {
+                section_direction.0[i].0 = new_direction;
             }
 
             i = i + 1;
@@ -1032,7 +1065,7 @@ fn show_views(
 
             // Cross sections on a lower dimension
             if ui.add(egui::Button::selectable(
-                section_direction.len() <
+                section_direction.0.len() <
                     if let SectionState::Active {original_polytope, ..} = section_state.clone() {
                         original_polytope.rank()-3
                     } else {
@@ -1047,12 +1080,12 @@ fn show_views(
                     direction[dim - 1] = 1.0;
                 }
                 section_state.add();
-                section_direction.push(SectionDirection{0:direction});
+                section_direction.0.push(SectionDirection{0:direction});
             }
             // Cross sections on a higher dimension
-            if ui.add(egui::Button::selectable(section_direction.len() > 1,"-")).clicked() {
+            if ui.add(egui::Button::selectable(section_direction.0.len() > 1,"-")).clicked() {
                 section_state.remove();
-                section_direction.pop();
+                section_direction.0.pop();
             }
 
             let mut new_flatten = flatten;
@@ -1114,9 +1147,9 @@ fn show_views(
                     let hyp_pos = hyperplane_pos[i];
 
                     if let Some(dim) = r.dim() {
-                        let hyperplane = Hyperplane::new(section_direction[i].0.clone(), hyp_pos);
+                        let hyperplane = Hyperplane::new(section_direction.0[i].0.clone(), hyp_pos);
                         minmax[i] = r
-                            .minmax(section_direction[i].0.clone())
+                            .minmax(section_direction.0[i].0.clone())
                             .unwrap_or((-1.0, 1.0));
 
                         minmax[i].0 += f64::EPS;

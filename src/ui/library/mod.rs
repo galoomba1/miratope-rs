@@ -12,7 +12,7 @@ use miratope_core::file::FromFile;
 use special::*;
 
 use bevy::prelude::*;
-use bevy_egui::{egui, egui::Ui, EguiContext};
+use bevy_egui::{egui, egui::Ui, EguiContexts};
 use serde::{Deserialize, Serialize};
 
 mod special;
@@ -23,17 +23,16 @@ pub struct LibraryPlugin;
 impl Plugin for LibraryPlugin {
     fn build(&self, app: &mut App) {
         // This must run after the Config resource has been added.
-        let library = Library::new_folder(&LibPath::default());
+        if let Some(library) = Library::new_folder(&LibPath::default()){
 
-        // The library must be shown after the top panel, to avoid incorrect
-        // positioning.
-        app.insert_resource(library).add_system(
-            show_library
-                .system()
-                .label("show_library")
-                .after("show_top_panel"),
+            // The library must be shown after the top panel, to avoid incorrect
+            // positioning.
+            app.insert_resource(library).add_systems(Update, //hopefully there's no problems with the library failing
+                show_library
+                    //.label("show_library")
+                    //.after("show_top_panel"),
         );
-    }
+    }}
 }
 
 /// The result of showing the Miratope library in a particular frame.
@@ -245,42 +244,43 @@ impl Library {
 
 /// The system that shows the Miratope library.
 fn show_library(
-    egui_ctx: Res<'_, EguiContext>,
+    mut egui_ctx: EguiContexts<'_, '_>,
     mut query: Query<'_, '_, &mut Concrete>,
     mut poly_name: ResMut<'_, PolyName>,
-    mut library: ResMut<'_, Option<Library>>,
+    mut library: ResMut<'_, Library>,
     lib_path: Res<'_, LibPath>,
-) {
+) -> Result {
     // Shows the polytope library.
-    if let Some(library) = library.as_mut() {
-        egui::SidePanel::left("left_panel")
-            .default_width(300.0)
-            .max_width(450.0)
-            .show(egui_ctx.get(), |ui| {
-                egui::containers::ScrollArea::vertical().show(ui, |ui| {
-                    match library.show(ui, PathBuf::from(lib_path.as_ref())) {
-                        // No action needs to be taken.
-                        ShowResult::None => {}
+    let library = library.as_mut();
+    egui::SidePanel::left("left_panel")
+        .default_width(300.0)
+        .max_width(450.0)
+        .show(egui_ctx.ctx_mut()?, |ui| {
+            egui::containers::ScrollArea::vertical().show(ui, |ui| {
+                match library.show(ui, PathBuf::from(lib_path.as_ref())) {
+                    // No action needs to be taken.
+                    ShowResult::None => {}
 
-                        // Loads a selected file.
-                        ShowResult::Load(file) => match Concrete::from_path(&file) {
-                            Ok(q) => {
-                                *query.iter_mut().next().unwrap() = q;
-                                let path_buf = PathBuf::from(file);
-                                let file_name = path_buf.file_name().unwrap().to_str().unwrap();
-                                poly_name.0 = file_name[..file_name.len()-4].into();
-                            },
-                            Err(err) => eprintln!("File open failed: {}", err),
+                    // Loads a selected file.
+                    ShowResult::Load(file) => match Concrete::from_path(&file) {
+                        Ok(q) => {
+                            *query.iter_mut().next().unwrap() = q;
+                            let path_buf = PathBuf::from(file);
+                            let file_name = path_buf.file_name().unwrap().to_str().unwrap();
+                            poly_name.0 = file_name[..file_name.len()-4].into();
                         },
+                        Err(err) => eprintln!("File open failed: {}", err),
+                    },
 
-                        // Loads a special polytope.
-                        ShowResult::Special(special) => {
-                            let (a, b) = special.load();
-                            *query.iter_mut().next().unwrap() = a;
-                            poly_name.0 = b;
-                        }
+                    // Loads a special polytope.
+                    ShowResult::Special(special) => {
+                        let (a, b) = special.load();
+                        *query.iter_mut().next().unwrap() = a;
+                        poly_name.0 = b;
                     }
-                })
-            });
-    }
+                }
+            })
+        });
+
+    Ok(())
 }

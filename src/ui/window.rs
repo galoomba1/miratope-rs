@@ -14,10 +14,8 @@ use crate::{Concrete, Float, Hypersphere, Point, ui::main_window::PolyName};
 use miratope_core::{conc::ConcretePolytope, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
-use bevy_egui::{
-    egui::{self, Context, Layout, Ui, Widget},
-    EguiContext,
-};
+use bevy_egui::{egui::{self, Context, Layout, Ui, Widget, Align}, EguiContexts};
+use crate::mesh::HandledMesh;
 
 /// The text on the loaded polytope slot.
 const LOADED_LABEL: &str = "(Loaded polytope)";
@@ -57,7 +55,8 @@ impl Plugin for WindowPlugin {
             TruncateWindow::plugin(),
             ScaleWindow::plugin(),
             FacetingSettings::plugin(),
-            RotateWindow::plugin(),
+            RotateWindow::plugin()))
+        .add_plugins((
             PlaneWindow::plugin(),
             TranslateWindow::plugin()));
     }
@@ -80,7 +79,7 @@ impl<'a> Widget for OkReset<'a> {
         // We have to manually set the height of our control, for whatever reason.
         let size = egui::Vec2::new(ui.min_size().x, 30.0);
 
-        ui.allocate_ui_with_layout(size, Layout::right_to_left(), |ui| {
+        ui.allocate_ui_with_layout(size, Layout::right_to_left(Align::Center), |ui| {
             if ui.button("Ok").clicked() {
                 *self.result = ShowResult::Ok;
             } else if ui.button("Reset").clicked() {
@@ -149,13 +148,13 @@ macro_rules! impl_show {
         /// The system that shows the window.
         fn show_system(
             mut self_: ResMut<'_, Self>,
-            egui_ctx: Res<'_, EguiContext>,
+            mut egui_ctx: EguiContexts<'_, '_>,
             mut query: Query<'_, '_, &mut Concrete>,
             mut poly_name: ResMut<'_, PolyName>,
-        ) where
+        ) -> Result where
             Self: 'static,
         {
-            match self_.show(egui_ctx.ctx()) {
+            match self_.show(egui_ctx.ctx_mut()?) {
                 ShowResult::Ok => {
                     for mut polytope in query.iter_mut() {
                         self_.action(polytope.as_mut());
@@ -167,6 +166,7 @@ macro_rules! impl_show {
                 ShowResult::Reset => self_.reset(),
                 ShowResult::None => {}
             }
+            Ok(())
         }
     };
 }
@@ -204,7 +204,7 @@ pub struct PlainWindowPlugin<T: PlainWindow>(PhantomData<T>);
 impl<T: PlainWindow + 'static> Plugin for PlainWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_systems(Update, T::show_system);  //.label("show_windows"));
     }
 }
 
@@ -242,7 +242,7 @@ pub trait UpdateWindow: Window {
     /// updated.
     fn update_system(
         mut self_: ResMut<'_, Self>,
-        query: Query<'_, '_, (&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+        query: Query<'_, '_, (&Concrete, &HandledMesh, &Children), Changed<Concrete>>,
     ) where
         Self: 'static,
     {
@@ -264,8 +264,8 @@ pub struct UpdateWindowPlugin<T: UpdateWindow>(PhantomData<T>);
 impl<T: UpdateWindow + 'static> Plugin for UpdateWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.insert_resource(T::default())
-            .add_system(T::show_system.system().label("show_windows"))
-            .add_system(T::update_system.system().label("show_windows"));
+            .add_systems(Update, T::show_system) //.label("show_windows"))
+            .add_systems(Update, T::update_system);  //.label("show_windows"));
     }
 }
 
@@ -337,22 +337,22 @@ pub trait MemoryWindow: Window {
     /// The system that shows the window.
     fn show_system(
         mut self_: ResMut<'_, Self>,
-        egui_ctx: Res<'_, EguiContext>,
+        mut egui_ctx: EguiContexts<'_, '_>,
         mut query: Query<'_, '_, &mut Concrete>,
         memory: Res<'_, Memory>,
-    ) where
+    ) -> Result where
         Self: 'static,
     {
-        match self_.show(egui_ctx.get(), &memory) {
+        match self_.show(egui_ctx.ctx_mut()?, &memory) {
             ShowResult::Ok => {
                 for mut polytope in query.iter_mut() {
                     self_.action(polytope.as_mut());
                 }
-                self_.close()
+                Ok(self_.close())
             }
-            ShowResult::Close => self_.close(),
-            ShowResult::Reset => self_.reset(),
-            ShowResult::None => {}
+            ShowResult::Close => Ok(self_.close()),
+            ShowResult::Reset => Ok(self_.reset()),
+            ShowResult::None => {Ok(())}
         }
     }
 
@@ -369,7 +369,7 @@ pub struct MemoryWindowPlugin<T: MemoryWindow>(PhantomData<T>);
 impl<T: MemoryWindow + 'static> Plugin for MemoryWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_systems(Update, T::show_system);  //.label("show_windows"));
     }
 }
 
@@ -529,15 +529,15 @@ pub trait DuoWindow: Window {
     /// The system that shows the window.
     fn show_system(
         mut self_: ResMut<'_, Self>,
-        egui_ctx: Res<'_, EguiContext>,
+        mut egui_ctx: EguiContexts<'_, '_>,
         mut query: Query<'_, '_, &mut Concrete>,
         memory: Res<'_, Memory>,
         mut poly_name: ResMut<'_, PolyName>,
-    ) where
+    ) -> Result where
         Self: 'static,
     {
         for mut polytope in query.iter_mut() {
-            match self_.show(egui_ctx.get(), &polytope, &memory) {
+            match self_.show(egui_ctx.ctx_mut()?, &polytope, &memory) {
                 ShowResult::Ok => {
                     self_.action(polytope.as_mut(), &memory);
                     self_.name_action(&mut poly_name.0, &memory);
@@ -548,6 +548,7 @@ pub trait DuoWindow: Window {
                 ShowResult::None => {}
             }
         }
+        Ok(())
     }
 
     /// A plugin that adds a resource of type `Self` and the system to show it.
@@ -563,7 +564,7 @@ pub struct DuoWindowPlugin<T: DuoWindow>(PhantomData<T>);
 impl<T: DuoWindow + 'static> Plugin for DuoWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_system(T::show_system.system().label("show_windows"));
+            .add_systems(Update, T::show_system); //.label("show_windows"));
     }
 }
 
@@ -1490,7 +1491,7 @@ impl UpdateWindow for TruncateWindow {
 
     fn update_system(
         mut self_: ResMut<'_, Self>,
-        query: Query<'_, '_, (&Concrete, &Handle<Mesh>, &Children), Changed<Concrete>>,
+        query: Query<'_, '_, (&Concrete, &HandledMesh, &Children), Changed<Concrete>>,
     ) where
         Self: 'static,
     {

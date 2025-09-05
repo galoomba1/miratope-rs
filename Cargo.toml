@@ -26,13 +26,10 @@ rfd = "0.15.4"
 ron = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
 bevy_egui = "0.36"
-tracing-subscriber = "0.3.19" #Low-key load bearing, makes another dependency work right
-#It's likely that now that's upgraded, it could be removed without issue
-# Changed features to adjust to the latest Bevy version's naming scheme
+uuid = { version = "1.18.0", features = ["v4"] }
+
 [dependencies.bevy]
 version = "0.16.1"
-#git = "https://github.com/bevyengine/bevy"
-#branch = "main"
 default-features = false
 features = [
     "bevy_gltf",
@@ -42,19 +39,10 @@ features = [
     "x11"
 ]
 
-# Bevy egui integration with this latest version.
-#[dependencies.bevy_egui]
-#git = "https://github.com/vihdzp/bevy_egui/"
-#branch = "bevy-main"
-
-[dependencies.egui]
-version = "0.32.1"
-default-features = false
 
 
 
-#[patch.crates-io]
-#winit = { git = "https://github.com/vihdzp/winit" }
+
 
 [profile.release]
 lto = "thin"

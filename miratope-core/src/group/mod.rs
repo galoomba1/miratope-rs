@@ -376,7 +376,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
                 )
                     .into_pairs()
                     .filter_map(|(alpha, q), (beta, r)| {
-                        (alpha.eq(beta)).then(|| {
+                        alpha.eq(beta).then(|| {
                             let prod = mat_from_quats(q.quaternion(), r.quaternion());
                             IntoIterator::into_iter([-&prod, prod])
                         })
