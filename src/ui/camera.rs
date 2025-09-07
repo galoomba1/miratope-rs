@@ -10,6 +10,7 @@ use bevy::{
 };
 use bevy::window::PrimaryWindow;
 use bevy_egui::{egui::Context, EguiContexts};
+use crate::ui::library::show_library;
 
 /// The plugin handling all camera input.
 pub struct InputPlugin;
@@ -20,7 +21,7 @@ impl Plugin for InputPlugin {
             .init_resource::<ProjectionType>()
             // We register inputs after the library has been shown, so that we
             // know whether mouse input should register.
-            .add_systems(Update, add_cam_input_events) //.after("show_library"))
+            .add_systems(Update, add_cam_input_events.after(show_library))
             .add_systems(Update, update_cameras_and_anchors);
     }
 }

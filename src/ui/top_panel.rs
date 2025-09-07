@@ -28,8 +28,7 @@ impl Plugin for TopPanelPlugin {
             // Windows must be the first thing shown.
             .add_systems(Update,
                 show_top_panel
-                    //.label("show_top_panel")
-                    //.after("show_windows"),
+                    .after(ShowWindows),//list of all the offending window showing systems
             );
     }
 }
@@ -380,7 +379,7 @@ pub fn show_top_panel(
         mut translate_window,
     ): EguiWindows<'_>,
 ) -> Result {
-    // The top bar. There's a lot of borrow nonsense going here. Using clone() to fix it for now. Probably will mess the menu
+    // I think the problem may be on the very long closure in here. The clones are safe, so that can't be the source of the error
     let context = egui_ctx.ctx_mut()?;
     egui::TopBottomPanel::top("top_panel").show(&context.clone(), |ui| {
         MenuBar::new().ui(ui, |ui| {

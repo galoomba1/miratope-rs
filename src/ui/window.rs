@@ -62,6 +62,10 @@ impl Plugin for WindowPlugin {
     }
 }
 
+/// [SystemSet] with all the systems involving showing windows
+#[derive(SystemSet, Clone, Hash, Debug, Eq, PartialEq)]
+pub struct ShowWindows;
+
 /// A widget consisting of a Reset button and an Ok button, right-aligned.
 pub struct OkReset<'a> {
     result: &'a mut ShowResult,
@@ -204,7 +208,7 @@ pub struct PlainWindowPlugin<T: PlainWindow>(PhantomData<T>);
 impl<T: PlainWindow + 'static> Plugin for PlainWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system);  //.label("show_windows"));
+            .add_systems(Update, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -264,8 +268,8 @@ pub struct UpdateWindowPlugin<T: UpdateWindow>(PhantomData<T>);
 impl<T: UpdateWindow + 'static> Plugin for UpdateWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.insert_resource(T::default())
-            .add_systems(Update, T::show_system) //.label("show_windows"))
-            .add_systems(Update, T::update_system);  //.label("show_windows"));
+            .add_systems(Update, T::show_system.in_set(ShowWindows)) //.label("show_windows"))
+            .add_systems(Update, T::update_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -369,7 +373,7 @@ pub struct MemoryWindowPlugin<T: MemoryWindow>(PhantomData<T>);
 impl<T: MemoryWindow + 'static> Plugin for MemoryWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system);  //.label("show_windows"));
+            .add_systems(Update, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -564,7 +568,7 @@ pub struct DuoWindowPlugin<T: DuoWindow>(PhantomData<T>);
 impl<T: DuoWindow + 'static> Plugin for DuoWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system); //.label("show_windows"));
+            .add_systems(Update, T::show_system.in_set(ShowWindows)); //.label("show_windows"));
     }
 }
 

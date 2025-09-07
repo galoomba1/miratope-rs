@@ -64,7 +64,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
-        .add_plugins(MiratopePlugins)
+        .add_plugins((MiratopePlugins, MaterialPlugin::<TwoSidedMaterial>::default()))
         .add_systems(Startup, setup)
         .run();
 }

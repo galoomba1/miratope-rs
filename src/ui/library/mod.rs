@@ -14,6 +14,7 @@ use special::*;
 use bevy::prelude::*;
 use bevy_egui::{egui, egui::Ui, EguiContexts};
 use serde::{Deserialize, Serialize};
+use crate::ui::top_panel::show_top_panel;
 
 mod special;
 
@@ -29,8 +30,7 @@ impl Plugin for LibraryPlugin {
             // positioning.
             app.insert_resource(library).add_systems(Update, //hopefully there's no problems with the library failing
                 show_library
-                    //.label("show_library")
-                    //.after("show_top_panel"),
+                    .after(show_top_panel),
         );
     }}
 }
@@ -243,7 +243,7 @@ impl Library {
 }
 
 /// The system that shows the Miratope library.
-fn show_library(
+pub fn show_library(
     mut egui_ctx: EguiContexts<'_, '_>,
     mut query: Query<'_, '_, &mut Concrete>,
     mut poly_name: ResMut<'_, PolyName>,

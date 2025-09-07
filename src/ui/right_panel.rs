@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
-use crate::ui::top_panel::SectionDirectionVec;
+use crate::ui::top_panel::{show_top_panel, SectionDirectionVec};
 use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName};
 
 #[derive(Clone, Copy, Debug)]
@@ -138,8 +138,7 @@ impl Plugin for RightPanelPlugin {
             // The top panel must be shown first.
             .add_systems(Update,
                 show_right_panel
-                    //.label("show_right_panel")
-                    //.after("show_top_panel"),
+                    .after(show_top_panel),
             );
     }
 }
