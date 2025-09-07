@@ -10,7 +10,6 @@ use bevy::{
     render::{mesh::Indices, mesh::PrimitiveTopology},
 };
 use bevy::asset::RenderAssetUsages;
-use bevy::prelude::{Component, Handle, StandardMaterial};
 use lyon::{math::point, path::Path, tessellation::*};
 use miratope_core::conc::cycle::{Cycle, CycleList};
 use miratope_core::{
@@ -20,24 +19,6 @@ use miratope_core::{
 };
 
 use vec_like::*;
-
-/// [Handle<Mesh>] of a [Mesh] used in a Query.
-/// Needs to be a Component (and a Newtype) to do so.
-#[derive(Component)]
-pub struct HandledMesh(pub(crate) Handle<Mesh>);
-
-impl Default for HandledMesh{
-    fn default() -> Self { HandledMesh(Default::default()) }
-}
-
-/// [Handle<StandardMaterial>] of an [StandardMaterial] used in a Query.
-/// Needs to be a Component (and a Newtype) to do so.
-#[derive(Component)]
-pub struct HandledMaterial(pub(crate) Handle<StandardMaterial>);
-
-impl Default for HandledMaterial{
-    fn default() -> Self { HandledMaterial(Default::default()) }
-}
 
 /// Attempts to turn the cycle into a 2D path, which can then be given to
 /// the tessellator. Uses the specified vertex list to grab the coordinates

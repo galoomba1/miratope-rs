@@ -3,8 +3,8 @@
 use std::cmp::*;
 
 use bevy::prelude::{Query, ResMut, Resource, Result};
-use bevy_egui::{egui, EguiContexts};
-
+use bevy_egui::{egui};
+use bevy_egui::egui::Context;
 use crate::{
     ui::config::SlotsPerPage,
     Concrete
@@ -55,7 +55,7 @@ impl Memory {
         query: &mut Query<'_, '_, &mut Concrete>,
         poly_name: &mut ResMut<'_, PolyName>,
         slots_per_page: &mut ResMut<'_, SlotsPerPage>,
-        mut egui_ctx: EguiContexts<'_, '_>,
+        context: &mut Context,
         open: &mut bool
     ) -> Result {
         let spp = slots_per_page.0;
@@ -65,7 +65,7 @@ impl Memory {
             .open(open)
             .scroll(true)
             .default_width(260.0)
-            .show(egui_ctx.ctx_mut()?, |ui| {
+            .show(context, |ui| {
             egui::containers::ScrollArea::vertical().show(ui, |ui| {
                 
                 ui.horizontal(|ui| {

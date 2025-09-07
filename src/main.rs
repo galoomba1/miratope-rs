@@ -12,7 +12,6 @@
 //! A tool for building and visualizing polytopes. Still in alpha development.
 
 use bevy::prelude::*;
-use bevy::render::render_resource::RenderPipelineDescriptor;
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
 use no_cull_pipeline::PbrNoBackfaceBundle;
@@ -23,6 +22,7 @@ use ui::{
 };
 
 use crate::mesh::Renderable;
+use crate::no_cull_pipeline::TwoSidedMaterial;
 
 mod mesh;
 mod no_cull_pipeline;
@@ -62,7 +62,6 @@ const EPS: Float = <Float as miratope_core::float::Float>::EPS;
 fn main() {
     unsafe { std::env::set_var("RUST_BACKTRACE", "full"); }
     App::new()
-        .insert_resource(Msaa::Sample4)
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_plugins(MiratopePlugins)
@@ -74,30 +73,27 @@ fn main() {
 fn setup(
     mut commands: Commands<'_, '_>,
     mut meshes: ResMut<'_, Assets<Mesh>>,
-    mut materials: ResMut<'_, Assets<StandardMaterial>>,
-    mut shaders: ResMut<'_, Assets<Shader>>,
-    mut pipelines: ResMut<'_, Assets<RenderPipelineDescriptor>>,
+    mut materials: ResMut<'_, Assets<TwoSidedMaterial>>,
 ) {
     // Default polytope.
     let poly = Concrete::from_off(include_str!("default.off")).unwrap();
 
-    // Disables backface culling.
-    pipelines.add( // maybe add isn't the right method?
-        no_cull_pipeline::build_no_cull_pipeline(&mut shaders),
-    );
 
     // Selected object (unused as of yet).
-    materials.add( // maybe add isn't the right method?
-        Color::srgb_u8(126, 192, 255).into(),
-    );
+    materials.add( TwoSidedMaterial {
+        color: LinearRgba::from(Color::srgb_u8(126, 192, 255)),
+        ..Default::default()
+    });
 
     // Wireframe material. (WIREFRAME UNSELECTED MATERIAL)
-    let wf_material = materials.add(Srgba::rgb_u8(150, 150, 150).into());
+    let wf_material = materials.add(TwoSidedMaterial {
+        color: LinearRgba::from(Srgba::rgb_u8(150, 150, 150)),
+        ..Default::default()
+    });
 
     // Mesh material.
-    let mesh_material = materials.add(StandardMaterial {
-        base_color: Color::srgb_u8(255, 255, 255),
-        metallic: 0.0,
+    let mesh_material = materials.add(TwoSidedMaterial {
+        color: LinearRgba::from(Color::srgb_u8(255, 255, 255)),
         ..Default::default()
     });
 
@@ -109,15 +105,15 @@ fn setup(
     commands
         // Mesh
         .spawn(PbrNoBackfaceBundle {
-            mesh: mesh::HandledMesh(meshes.add(poly.mesh(ProjectionType::Perspective))),
-            material: mesh::HandledMaterial(mesh_material),
+            mesh: no_cull_pipeline::HandledMesh(meshes.add(poly.mesh(ProjectionType::Perspective))),
+            material: no_cull_pipeline::HandledMaterial(mesh_material),
             ..Default::default()
         })
         // Wireframe
         .with_children(|cb| {
             cb.spawn(PbrNoBackfaceBundle {
-                mesh: mesh::HandledMesh(meshes.add(poly.wireframe(ProjectionType::Perspective))),
-                material: mesh::HandledMaterial(wf_material),
+                mesh: no_cull_pipeline::HandledMesh(meshes.add(poly.wireframe(ProjectionType::Perspective))),
+                material: no_cull_pipeline::HandledMaterial(wf_material),
                 ..Default::default()
             });
         })
@@ -132,6 +128,7 @@ fn setup(
             cb.spawn((
                 Camera3d::default(),
                 cam,
+                Msaa::Sample4,
 
             ));
             // Light source

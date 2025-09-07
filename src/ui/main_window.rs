@@ -3,13 +3,14 @@
 use super::config::{MeshColor, WfColor};
 use super::right_panel::ElementTypesRes;
 use super::{camera::ProjectionType, top_panel::SectionState};
-use crate::mesh::{HandledMaterial, HandledMesh, Renderable};
+use crate::mesh::Renderable;
 use crate::Concrete;
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContextSettings;
 use miratope_core::abs::Ranked;
+use crate::no_cull_pipeline::{HandledMaterial, HandledMesh, TwoSidedMaterial};
 
 /// The plugin in charge of the Miratope main window, and of drawing the
 /// polytope onto it.
@@ -116,20 +117,22 @@ pub fn update_changed_polytopes(
 }
 
 pub fn update_changed_color(
-    mut materials: ResMut<'_, Assets<StandardMaterial>>,
+    mut materials: ResMut<'_, Assets<TwoSidedMaterial>>,
     mut polies: Query<'_, '_, &HandledMaterial, With<Concrete>>,
     mut wfs: Query<'_, '_, &HandledMaterial, Without<Concrete>>,
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
 ) {
     if let Some(material_handle) = polies.iter_mut().next() {
-        *materials.get_mut(&material_handle.0).unwrap() = StandardMaterial {
-            base_color: mesh_color.0,
-            metallic: 0.0,
+        *materials.get_mut(&material_handle.0).unwrap() = TwoSidedMaterial {
+            color: LinearRgba::from(mesh_color.0),
             ..Default::default()
         };
     }
     if let Some(wf_handle) = wfs.iter_mut().next() {
-        *materials.get_mut(&wf_handle.0).unwrap() = wf_color.0.into()
+        *materials.get_mut(&wf_handle.0).unwrap() = TwoSidedMaterial {
+            color: LinearRgba::from(wf_color.0),
+            ..Default::default()
+        }
     }
 }

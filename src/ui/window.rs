@@ -15,7 +15,7 @@ use miratope_core::{conc::ConcretePolytope, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
 use bevy_egui::{egui::{self, Context, Layout, Ui, Widget, Align}, EguiContexts};
-use crate::mesh::HandledMesh;
+use crate::no_cull_pipeline::HandledMesh;
 
 /// The text on the loaded polytope slot.
 const LOADED_LABEL: &str = "(Loaded polytope)";

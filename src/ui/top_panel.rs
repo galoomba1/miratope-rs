@@ -380,8 +380,9 @@ pub fn show_top_panel(
         mut translate_window,
     ): EguiWindows<'_>,
 ) -> Result {
-    // The top bar. There's a lot of borrow nonsense going here
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut()?, |ui| {
+    // The top bar. There's a lot of borrow nonsense going here. Using clone() to fix it for now. Probably will mess the menu
+    let context = egui_ctx.ctx_mut()?;
+    egui::TopBottomPanel::top("top_panel").show(&context.clone(), |ui| {
         MenuBar::new().ui(ui, |ui| {
             
             // Operations on files.
@@ -859,7 +860,7 @@ pub fn show_top_panel(
             if ui.button("Memory").clicked() {
                 show_memory.0 = !show_memory.0;
             }
-            memory.show(&mut query, &mut poly_name, &mut slots_per_page, egui_ctx, &mut show_memory.0).unwrap();
+            memory.show(&mut query, &mut poly_name, &mut slots_per_page, &mut context.clone(), &mut show_memory.0).unwrap();
 
             if ui.button("Help").clicked() {
                 show_help.0 = !show_help.0;
@@ -867,7 +868,7 @@ pub fn show_top_panel(
             egui::Window::new("Help")
                 .open(&mut show_help.0)
                 .resizable(false)
-                .show(egui_ctx.ctx_mut().unwrap(), |ui| {
+                .show(&context.clone(), |ui| {
                     ui.heading("Hotkeys");
                     ui.label("V: toggle faces\nB: toggle wireframe");
                     ui.separator();
