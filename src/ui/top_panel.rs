@@ -7,7 +7,7 @@ use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
 use bevy::ecs::change_detection::ResMut;
-use bevy_egui::{egui::{self, Ui, MenuBar}, EguiContexts};
+use bevy_egui::{egui::{self, Ui, MenuBar}, EguiContexts, EguiPrimaryContextPass};
 use bevy_egui::egui::{Visuals};
 use miratope_core::{conc::{ConcretePolytope, faceting::GroupEnum, symmetry::Vertices}, file::FromFile, float::Float as Float2, Polytope, abs::Ranked};
 
@@ -24,9 +24,9 @@ impl Plugin for TopPanelPlugin {
             .init_resource::<ShowHelp>()
             .init_resource::<ExportMemory>()
             .init_non_send_resource::<FileDialogToken>()
-            .add_systems(Update, file_dialog)
+            .add_systems(EguiPrimaryContextPass, file_dialog)
             // Windows must be the first thing shown.
-            .add_systems(Update,
+            .add_systems(EguiPrimaryContextPass,
                 show_top_panel
                     .after(ShowWindows),//list of all the offending window showing systems
             );

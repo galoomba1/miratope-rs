@@ -12,7 +12,7 @@ use miratope_core::file::FromFile;
 use special::*;
 
 use bevy::prelude::*;
-use bevy_egui::{egui, egui::Ui, EguiContexts};
+use bevy_egui::{egui, egui::Ui, EguiContexts, EguiPrimaryContextPass};
 use serde::{Deserialize, Serialize};
 use crate::ui::top_panel::show_top_panel;
 
@@ -28,7 +28,7 @@ impl Plugin for LibraryPlugin {
 
             // The library must be shown after the top panel, to avoid incorrect
             // positioning.
-            app.insert_resource(library).add_systems(Update, //hopefully there's no problems with the library failing
+            app.insert_resource(library).add_systems(EguiPrimaryContextPass, //hopefully there's no problems with the library failing
                 show_library
                     .after(show_top_panel),
         );

@@ -3,7 +3,7 @@
 use crate::Concrete;
 
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts};
+use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
 use crate::ui::top_panel::{show_top_panel, SectionDirectionVec};
@@ -136,7 +136,7 @@ impl Plugin for RightPanelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ElementTypesRes>()
             // The top panel must be shown first.
-            .add_systems(Update,
+            .add_systems(EguiPrimaryContextPass,
                 show_right_panel
                     .after(show_top_panel),
             );

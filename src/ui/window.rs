@@ -14,7 +14,7 @@ use crate::{Concrete, Float, Hypersphere, Point, ui::main_window::PolyName};
 use miratope_core::{conc::ConcretePolytope, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
-use bevy_egui::{egui::{self, Context, Layout, Ui, Widget, Align}, EguiContexts};
+use bevy_egui::{egui::{self, Context, Layout, Ui, Widget, Align}, EguiContexts, EguiPrimaryContextPass};
 use crate::no_cull_pipeline::HandledMesh;
 
 /// The text on the loaded polytope slot.
@@ -208,7 +208,7 @@ pub struct PlainWindowPlugin<T: PlainWindow>(PhantomData<T>);
 impl<T: PlainWindow + 'static> Plugin for PlainWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
+            .add_systems(EguiPrimaryContextPass, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -268,8 +268,8 @@ pub struct UpdateWindowPlugin<T: UpdateWindow>(PhantomData<T>);
 impl<T: UpdateWindow + 'static> Plugin for UpdateWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.insert_resource(T::default())
-            .add_systems(Update, T::show_system.in_set(ShowWindows)) //.label("show_windows"))
-            .add_systems(Update, T::update_system.in_set(ShowWindows));  //.label("show_windows"));
+            .add_systems(EguiPrimaryContextPass, T::show_system.in_set(ShowWindows)) //.label("show_windows"))
+            .add_systems(EguiPrimaryContextPass, T::update_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -373,7 +373,7 @@ pub struct MemoryWindowPlugin<T: MemoryWindow>(PhantomData<T>);
 impl<T: MemoryWindow + 'static> Plugin for MemoryWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
+            .add_systems(EguiPrimaryContextPass, T::show_system.in_set(ShowWindows));  //.label("show_windows"));
     }
 }
 
@@ -568,7 +568,7 @@ pub struct DuoWindowPlugin<T: DuoWindow>(PhantomData<T>);
 impl<T: DuoWindow + 'static> Plugin for DuoWindowPlugin<T> {
     fn build(&self, app: &mut App) {
         app.init_resource::<T>()
-            .add_systems(Update, T::show_system.in_set(ShowWindows)); //.label("show_windows"));
+            .add_systems(EguiPrimaryContextPass, T::show_system.in_set(ShowWindows)); //.label("show_windows"));
     }
 }
 
