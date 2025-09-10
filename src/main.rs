@@ -14,7 +14,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
-use no_cull_pipeline::PbrNoBackfaceBundle;
 
 use ui::{
     camera::{CameraInputEvent, ProjectionType},
@@ -22,10 +21,8 @@ use ui::{
 };
 
 use crate::mesh::Renderable;
-use crate::no_cull_pipeline::TwoSidedMaterial;
 
 mod mesh;
-mod no_cull_pipeline;
 mod ui;
 
 /// The link to the [Polytope Wiki](https://polytope.miraheze.org/wiki/).
@@ -64,7 +61,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
-        .add_plugins((MiratopePlugins, MaterialPlugin::<TwoSidedMaterial>::default()))
+        .add_plugins(MiratopePlugins)
         .add_systems(Startup, setup)
         .run();
 }
@@ -73,27 +70,34 @@ fn main() {
 fn setup(
     mut commands: Commands<'_, '_>,
     mut meshes: ResMut<'_, Assets<Mesh>>,
-    mut materials: ResMut<'_, Assets<TwoSidedMaterial>>,
-) {
+    mut materials: ResMut<'_, Assets<StandardMaterial>>,
+) { // The error seems to be in this function.
     // Default polytope.
     let poly = Concrete::from_off(include_str!("default.off")).unwrap();
 
 
     // Selected object (unused as of yet).
-    materials.add( TwoSidedMaterial {
-        color: LinearRgba::from(Color::srgb_u8(126, 192, 255)),
+    materials.add( StandardMaterial {
+        base_color: Color::srgb_u8(126, 192, 255),
+        double_sided: true,
+        cull_mode: None,
         ..Default::default()
     });
 
     // Wireframe material. (WIREFRAME UNSELECTED MATERIAL)
-    let wf_material = materials.add(TwoSidedMaterial {
-        color: LinearRgba::from(Srgba::rgb_u8(150, 150, 150)),
+    let wf_material = materials.add(StandardMaterial {
+        base_color: Color::srgb_u8(150, 150, 150),
+        double_sided: true,
+        cull_mode: None,
         ..Default::default()
     });
 
     // Mesh material.
-    let mesh_material = materials.add(TwoSidedMaterial {
-        color: LinearRgba::from(Color::srgb_u8(255, 255, 255)),
+    let mesh_material = materials.add(
+        StandardMaterial {
+        base_color: Color::srgb_u8(255, 255, 255),
+        double_sided: true,
+        cull_mode: None,
         ..Default::default()
     });
 
@@ -102,23 +106,24 @@ fn setup(
     let mut cam = Default::default();
     CameraInputEvent::reset(&mut cam_anchor, &mut cam);
 
-    commands
+    commands //looks like changing what's in here doesn't change the polytope shown... which is concerning
+        //this almost works. For some reason, the material doesn't show correctly. It may be the lack of a texture
         // Mesh
-        .spawn(PbrNoBackfaceBundle {
-            mesh: no_cull_pipeline::HandledMesh(meshes.add(poly.mesh(ProjectionType::Perspective))),
-            material: no_cull_pipeline::HandledMaterial(mesh_material),
-            ..Default::default()
-        })
+        .spawn((
+            Mesh3d(meshes.add(poly.mesh(ProjectionType::Perspective))),
+            MeshMaterial3d(mesh_material),
+            Transform::default()
+        ))
         // Wireframe
         .with_children(|cb| {
-            cb.spawn(PbrNoBackfaceBundle {
-                mesh: no_cull_pipeline::HandledMesh(meshes.add(poly.wireframe(ProjectionType::Perspective))),
-                material: no_cull_pipeline::HandledMaterial(wf_material),
-                ..Default::default()
-            });
+            cb.spawn((
+                Mesh3d(meshes.add(poly.wireframe(ProjectionType::Perspective))),
+                MeshMaterial3d(wf_material),
+                Transform::default()
+            ));
         })
         // Polytope
-        .insert(poly);
+        .insert(poly); //this seems to render over the other meshes, but the material error is something else
 
     // Camera anchor
     commands
@@ -133,7 +138,7 @@ fn setup(
             ));
             // Light source
             cb.spawn((
-                Transform::from_translation(Vec3::new(-5., 5., 50.)),
+                Transform::from_translation(Vec3::new(-1., 1., 5.)),
                 PointLight {
                     intensity: 10000.,
                     range: 100.,

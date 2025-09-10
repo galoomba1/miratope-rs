@@ -15,7 +15,6 @@ use miratope_core::{conc::ConcretePolytope, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
 use bevy_egui::{egui::{self, Context, Layout, Ui, Widget, Align}, EguiContexts, EguiPrimaryContextPass};
-use crate::no_cull_pipeline::HandledMesh;
 
 /// The text on the loaded polytope slot.
 const LOADED_LABEL: &str = "(Loaded polytope)";
@@ -246,7 +245,7 @@ pub trait UpdateWindow: Window {
     /// updated.
     fn update_system(
         mut self_: ResMut<'_, Self>,
-        query: Query<'_, '_, (&Concrete, &HandledMesh, &Children), Changed<Concrete>>,
+        query: Query<'_, '_, (&Concrete, &Mesh3d, &Children), Changed<Concrete>>,
     ) where
         Self: 'static,
     {
@@ -1495,7 +1494,7 @@ impl UpdateWindow for TruncateWindow {
 
     fn update_system(
         mut self_: ResMut<'_, Self>,
-        query: Query<'_, '_, (&Concrete, &HandledMesh, &Children), Changed<Concrete>>,
+        query: Query<'_, '_, (&Concrete, &Mesh3d, &Children), Changed<Concrete>>,
     ) where
         Self: 'static,
     {

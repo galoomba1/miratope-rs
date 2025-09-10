@@ -10,7 +10,6 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContextSettings;
 use miratope_core::abs::Ranked;
-use crate::no_cull_pipeline::{HandledMaterial, HandledMesh, TwoSidedMaterial};
 
 /// The plugin in charge of the Miratope main window, and of drawing the
 /// polytope onto it.
@@ -75,8 +74,8 @@ pub fn update_scale_factor(mut egui_settings: Query<'_, '_, &mut EguiContextSett
 /// Updates polytopes after an operation.
 pub fn update_changed_polytopes(
     mut meshes: ResMut<'_, Assets<Mesh>>,
-    polies: Query<'_, '_, (&Concrete, &HandledMesh, &Children), Changed<Concrete>>,
-    wfs: Query<'_, '_, &HandledMesh, Without<Concrete>>,
+    polies: Query<'_, '_, (&Concrete, &Mesh3d, &Children), Changed<Concrete>>,
+    wfs: Query<'_, '_, &Mesh3d, Without<Concrete>>,
     mut window_query: Query<'_, '_, &mut Window, With<PrimaryWindow>>,
     mut section_state: ResMut<'_, SectionState>,
     mut element_types: ResMut<'_, ElementTypesRes>,
@@ -117,21 +116,25 @@ pub fn update_changed_polytopes(
 }
 
 pub fn update_changed_color(
-    mut materials: ResMut<'_, Assets<TwoSidedMaterial>>,
-    mut polies: Query<'_, '_, &HandledMaterial, With<Concrete>>,
-    mut wfs: Query<'_, '_, &HandledMaterial, Without<Concrete>>,
+    mut materials: ResMut<'_, Assets<StandardMaterial>>,
+    mut polies: Query<'_, '_, &MeshMaterial3d<StandardMaterial>, With<Concrete>>,
+    mut wfs: Query<'_, '_, &MeshMaterial3d<StandardMaterial>, Without<Concrete>>,
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
 ) {
     if let Some(material_handle) = polies.iter_mut().next() {
-        *materials.get_mut(&material_handle.0).unwrap() = TwoSidedMaterial {
-            color: LinearRgba::from(mesh_color.0),
+        *materials.get_mut(&material_handle.0).unwrap() = StandardMaterial {
+            base_color: Color::from(LinearRgba::from(mesh_color.0)),
+            double_sided: true,
+            cull_mode: None,
             ..Default::default()
         };
     }
     if let Some(wf_handle) = wfs.iter_mut().next() {
-        *materials.get_mut(&wf_handle.0).unwrap() = TwoSidedMaterial {
-            color: LinearRgba::from(wf_color.0),
+        *materials.get_mut(&wf_handle.0).unwrap() = StandardMaterial {
+            base_color: Color::from(LinearRgba::from(wf_color.0)),
+            double_sided: true,
+            cull_mode: None,
             ..Default::default()
         }
     }

@@ -31,6 +31,9 @@ bevy_egui = "0.36"
 version = "0.16.1"
 default-features = false
 features = [
+    "bevy_picking",
+    "tonemapping_luts",
+    "bevy_log",
     "bevy_gltf",
     "bevy_winit",
     "bevy_render",
