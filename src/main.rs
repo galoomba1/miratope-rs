@@ -123,7 +123,7 @@ fn setup(
             ));
         })
         // Polytope
-        .insert(poly); //this seems to render over the other meshes, but the material error is something else
+        .insert(poly);
 
     // Camera anchor
     commands
@@ -138,7 +138,7 @@ fn setup(
             ));
             // Light source
             cb.spawn((
-                Transform::from_translation(Vec3::new(-1., 1., 5.)),
+                Transform::from_translation(Vec3::new(-5., 5., 50.)),
                 PointLight {
                     intensity: 10000.,
                     range: 100.,

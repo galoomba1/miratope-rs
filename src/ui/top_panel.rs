@@ -883,10 +883,10 @@ pub fn show_top_panel(
                 });
 
             // Background color picker.
-
+            // I think the problem may be here. Try to simplify the code
             // The current background color.
-            let [r, g, b, a] = colors.0.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
-            let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
+            let [r, g, b, _a] = colors.0.0.to_srgba().to_u8_array();
+            let color = egui::Color32::from_rgb(r, g, b);
 
             // The new background color.
             let mut new_color = color;
@@ -898,18 +898,18 @@ pub fn show_top_panel(
 
             // Updates the background color if necessary.
             if color != new_color {
-                colors.0.0 = Color::srgb(
-                    new_color.r() as f32 / 255.0,
-                    new_color.g() as f32 / 255.0,
-                    new_color.b() as f32 / 255.0,
+                colors.0.0 = Color::srgb_u8(
+                    new_color.r(),
+                    new_color.g(),
+                    new_color.b(),
                 );
             }
 
             // Mesh color picker.
 
             // The current mesh color.
-            let [r, g, b, a] = colors.1.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
-            let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
+            let [r, g, b, _a] = colors.1.0.to_srgba().to_u8_array();
+            let color = egui::Color32::from_rgb(r, g, b);
 
             // The new mesh color.
             let mut new_color = color;
@@ -921,18 +921,18 @@ pub fn show_top_panel(
 
             // Updates the mesh color if necessary.
             if color != new_color {
-                colors.1.0 = Color::srgb(
-                    new_color.r() as f32 / 255.0,
-                    new_color.g() as f32 / 255.0,
-                    new_color.b() as f32 / 255.0,
+                colors.1.0 = Color::srgb_u8(
+                    new_color.r(),
+                    new_color.g(),
+                    new_color.b(),
                 );
             }
 
             // Wireframe color picker.
 
             // The current wireframe color.
-            let [r, g, b, a] = colors.2.0.to_srgba().to_f32_array().map(|c| (c * 255.0) as u8);
-            let color = egui::Color32::from_rgba_premultiplied(r, g, b, a);
+            let [r, g, b, _a] = colors.2.0.to_srgba().to_u8_array();
+            let color = egui::Color32::from_rgb(r, g, b);
 
             // The new wireframe color.
             let mut new_color = color;
@@ -944,14 +944,14 @@ pub fn show_top_panel(
 
             // Updates the wireframe color if necessary.
             if color != new_color {
-                colors.2.0 = Color::srgb(
-                    new_color.r() as f32 / 255.0,
-                    new_color.g() as f32 / 255.0,
-                    new_color.b() as f32 / 255.0,
+                colors.2.0 = Color::srgb_u8(
+                    new_color.r(),
+                    new_color.g(),
+                    new_color.b(),
                 );
             }
 
-            // Light/dark mode toggle. Probably needs to be manually rebuilt
+            // Light/dark mode toggle.
             if let Some(new_visuals) = light_dark_small_toggle_button(&visuals.0, ui) {
                 *visuals = CurrentVisuals(new_visuals);
             }
