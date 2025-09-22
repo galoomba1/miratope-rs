@@ -136,14 +136,18 @@ fn setup(
                 Msaa::Sample4,
 
             ));
-            // Light source
+            // Light sources
             cb.spawn((
-                Transform::from_translation(Vec3::new(-5., 5., 50.)),
-                PointLight {
-                    intensity: 10000.,
-                    range: 100.,
-                    ..Default::default()
-                },
+                Transform::from_translation(Vec3::new(-5., 5., 5.)),
+                PointLight::default(),
+            ));
+            cb.spawn((
+                Transform::from_translation(Vec3::new(5., 5., 5.)),
+                PointLight::default(),
+            ));
+            cb.spawn((
+                Transform::from_translation(Vec3::new(0., 5., -5.)),
+                PointLight::default(),
             ));
         });
 }

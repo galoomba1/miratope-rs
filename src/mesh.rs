@@ -236,11 +236,14 @@ pub trait Renderable: ConcretePolytope {
         );
 
         // Builds the actual mesh.
-        Mesh::new(PrimitiveTopology::TriangleList,RenderAssetUsages::default())
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList,RenderAssetUsages::default())
             .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 1.0]; vertices.len()])
             .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals(&vertices))
             .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
-            .with_inserted_indices(Indices::U32(triangulation.triangles))
+            .with_inserted_indices(Indices::U32(triangulation.triangles));
+        mesh.duplicate_vertices();
+        mesh.compute_flat_normals();
+        mesh
     }
 
     /// Builds the wireframe of a polytope.
