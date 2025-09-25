@@ -127,7 +127,7 @@ fn setup(
 
     // Camera anchor
     commands
-        .spawn((GlobalTransform::default(), cam_anchor))
+        .spawn((GlobalTransform::default(), cam_anchor, InheritedVisibility::VISIBLE))
         .with_children(|cb| {
             // Camera
             cb.spawn((
