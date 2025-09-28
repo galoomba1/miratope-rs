@@ -106,20 +106,21 @@ fn setup(
     let mut cam = Default::default();
     CameraInputEvent::reset(&mut cam_anchor, &mut cam);
 
-    commands //looks like changing what's in here doesn't change the polytope shown... which is concerning
-        //this almost works. For some reason, the material doesn't show correctly. It may be the lack of a texture
+    commands
         // Mesh
         .spawn((
             Mesh3d(meshes.add(poly.mesh(ProjectionType::Perspective))),
             MeshMaterial3d(mesh_material),
-            Transform::default()
+            Transform::default(),
+            Visibility::Visible,
         ))
         // Wireframe
         .with_children(|cb| {
             cb.spawn((
                 Mesh3d(meshes.add(poly.wireframe(ProjectionType::Perspective))),
                 MeshMaterial3d(wf_material),
-                Transform::default()
+                Transform::default(),
+                Visibility::Visible,
             ));
         })
         // Polytope
