@@ -16,6 +16,9 @@ authors = [
 ]
 edition = "2024"
 
+[profile.dev.package."*"]
+opt-level = 3
+
 [dependencies]
 miratope-core = { path = "miratope-core", features = ["bevy"] }
 vec-like = { path = "vec-like" }
@@ -32,7 +35,7 @@ version = "0.16.1"
 default-features = false
 features = [
     "tonemapping_luts",
-    #"bevy_log", add back in when developing
+    "bevy_log",
     "bevy_gltf",
     "bevy_winit",
     #"bevy_render", only unneded because bevy_egui adds it back
