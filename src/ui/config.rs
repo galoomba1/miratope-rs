@@ -236,7 +236,7 @@ impl Config {
 
 /// Saves the configuration at application exit.
 fn save_config(
-    mut exit: EventReader<'_, '_, AppExit>,
+    mut exit: MessageReader<'_, '_, AppExit>,
     config_path: Res<'_, ConfigPath>,
 
     background_color: Res<'_, ClearColor>,

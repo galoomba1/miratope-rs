@@ -7,7 +7,7 @@ use crate::{Concrete, Float, Point, EPS};
 
 use bevy::{
     prelude::Mesh,
-    render::{mesh::Indices, mesh::PrimitiveTopology},
+    mesh::{Indices, PrimitiveTopology},
 };
 use bevy::asset::RenderAssetUsages;
 use lyon::{math::point, path::Path, tessellation::*};

@@ -6,7 +6,7 @@ use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
     math::EulerRot,
     prelude::*,
-    render::camera::Camera,
+    camera::Camera,
 };
 use bevy::window::PrimaryWindow;
 use bevy_egui::{egui::Context, EguiContexts};
@@ -17,7 +17,7 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<CameraInputEvent>()
+        app.add_message::<CameraInputEvent>()
             .init_resource::<ProjectionType>()
             // We register inputs after the library has been shown, so that we
             // know whether mouse input should register.
@@ -57,7 +57,7 @@ impl ProjectionType {
 }
 
 /// An input event for the camera.
-#[derive(Debug, Clone, Copy, PartialEq, Event)]
+#[derive(Debug, Clone, Copy, PartialEq, Message)]
 pub enum CameraInputEvent {
     /// Rotate the camera about the anchor.
     RotateAnchor(Vec2),
@@ -152,7 +152,7 @@ impl CameraInputEvent {
     fn cam_events_from_kb(
         time: &Time,
         keyboard: &ButtonInput<KeyCode>,
-        cam_inputs: &mut EventWriter<'_, CameraInputEvent>,
+        cam_inputs: &mut MessageWriter<'_, CameraInputEvent>,
         ctx: &Context,
     ) -> (f32, f32) {
         // TODO: make the spin rate modifiable in preferences.
@@ -195,10 +195,10 @@ impl CameraInputEvent {
     /// Processes camera events coming from the mouse buttons.
     fn cam_events_from_mouse(
         mouse_button: &ButtonInput<MouseButton>,
-        mut mouse_move: EventReader<'_, '_, MouseMotion>,
+        mut mouse_move: MessageReader<'_, '_, MouseMotion>,
         height: f32,
         real_scale: f32,
-        cam_inputs: &mut EventWriter<'_, Self>,
+        cam_inputs: &mut MessageWriter<'_, Self>,
     ) {
         if mouse_button.pressed(MouseButton::Left) || mouse_button.pressed(MouseButton::Right) {
             for &MouseMotion { mut delta } in mouse_move.read() {
@@ -211,9 +211,9 @@ impl CameraInputEvent {
 
     /// Processes camera events coming from the mouse wheel.
     fn cam_events_from_wheel(
-        mut mouse_wheel: EventReader<'_, '_, MouseWheel>,
+        mut mouse_wheel: MessageReader<'_, '_, MouseWheel>,
         scale: f32,
-        cam_inputs: &mut EventWriter<'_, Self>,
+        cam_inputs: &mut MessageWriter<'_, Self>,
     ) {
         for MouseWheel { unit, y, .. } in mouse_wheel.read() {
             let unit_scale = match unit {
@@ -232,10 +232,10 @@ fn add_cam_input_events(
     time: Res<'_, Time>,
     keyboard: Res<'_, ButtonInput<KeyCode>>,
     mouse_button: Res<'_, ButtonInput<MouseButton>>,
-    mouse_move: EventReader<'_, '_, MouseMotion>,
-    mouse_wheel: EventReader<'_, '_, MouseWheel>,
+    mouse_move: MessageReader<'_, '_, MouseMotion>,
+    mouse_wheel: MessageReader<'_, '_, MouseWheel>,
     mut window_query: Query<'_, '_, &Window, With<PrimaryWindow>>,
-    mut cam_inputs: EventWriter<'_, CameraInputEvent>,
+    mut cam_inputs: MessageWriter<'_, CameraInputEvent>,
     mut egui_ctx: EguiContexts<'_, '_>,
 ) -> Result {
     let height = {
@@ -263,7 +263,7 @@ fn add_cam_input_events(
 }
 
 fn update_cameras_and_anchors(
-    mut events: EventReader<'_, '_, CameraInputEvent>,
+    mut events: MessageReader<'_, '_, CameraInputEvent>,
     q: Query<
         '_,
         '_,
