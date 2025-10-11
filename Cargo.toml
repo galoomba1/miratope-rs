@@ -28,7 +28,7 @@ lyon = "1.0"
 rfd = "0.15.4"
 ron = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
-bevy_egui = { version = "0.37.0", default-features = false, features = ["default_fonts", "render", "bevy_ui"] }
+bevy_egui = "0.37.1"
 
 [dependencies.bevy]
 version = "0.17.2"
@@ -38,6 +38,7 @@ features = [
     "bevy_log",
     "bevy_gltf",
     "bevy_winit",
+    "bevy_picking",
     #"bevy_render", only unneded because bevy_egui adds it back
 ]
 
