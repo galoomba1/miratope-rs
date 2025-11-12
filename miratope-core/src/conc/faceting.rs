@@ -1481,7 +1481,7 @@ impl Concrete {
                             }
                             if exclude_hemis {
                                 if inradius.abs() < f64::EPS {
-                                    break
+                                    continue
                                 }
                             }
 
