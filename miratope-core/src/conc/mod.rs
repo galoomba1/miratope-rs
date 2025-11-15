@@ -27,9 +27,13 @@ use partitions::{PartitionVec, partition_vec};
 use rayon::prelude::*;
 use vec_like::*;
 
+#[cfg(feature="bevy")]
+use bevy::prelude::Component;
+
 /// Represents a [concrete polytope](https://polytope.miraheze.org/wiki/Polytope),
 /// which is an [`Abstract`] together with its corresponding vertices.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "bevy",derive(Component))]
 pub struct Concrete {
     /// The list of vertices as points in Euclidean space.
     // todo: come up with a more compact representation, making use of the fact

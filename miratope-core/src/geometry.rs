@@ -7,7 +7,7 @@ pub type Point<T> = nalgebra::DVector<T>;
 pub type Vector<T> = Point<T>;
 
 /// A non-owned form of [`Vector`].
-pub type VectorSlice<'a, T> = nalgebra::DVectorSlice<'a, T>;
+pub type VectorView<'a, T> = nalgebra::DVectorView<'a, T>;
 
 /// An *n* by *n* matrix.
 pub type Matrix<T> = nalgebra::DMatrix<T>;
@@ -23,7 +23,7 @@ use crate::{
 };
 
 use approx::{abs_diff_eq, abs_diff_ne};
-use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dynamic, OMatrix, U1};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, U1};
 use vec_like::VecLike;
 
 /// A hypersphere with a certain center and radius.
@@ -402,11 +402,11 @@ impl<'a, T: Float> Segment<'a, T> {
 #[repr(transparent)]
 pub struct MatrixOrdMxN<T: Float, R: Dim, C: Dim>(pub OMatrix<T, R, C>)
 where
-    DefaultAllocator: Allocator<T, R, C>;
+    DefaultAllocator: Allocator<R, C>;
 
 impl<T: Float, R: Dim, C: Dim> MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     /// Initializes a new `MatrixOrd` from a `Matrix`.
     pub fn new(mat: OMatrix<T, R, C>) -> Self {
@@ -436,7 +436,7 @@ where
 
 impl<T: Float, R: Dim, C: Dim> PartialEq for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn eq(&self, other: &Self) -> bool {
         assert_eq!(self.shape(), other.shape(), "matrix shape mismatch");
@@ -449,13 +449,13 @@ where
 /// Equality on `MatrixOrds` should be an equality relation, as long as the
 /// distance between the `MatrixOrds` you're comparing is "small".
 impl<T: Float, R: Dim, C: Dim> Eq for MatrixOrdMxN<T, R, C> where
-    DefaultAllocator: Allocator<T, R, C>
+    DefaultAllocator: Allocator<R, C>
 {
 }
 
 impl<T: Float, R: Dim, C: Dim> PartialOrd for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         for (x, y) in self.iter().zip(other.iter()) {
@@ -470,7 +470,7 @@ where
 
 impl<T: Float, R: Dim, C: Dim> Ord for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).expect("Matrix has NaN values")
@@ -479,7 +479,7 @@ where
 
 impl<T: Float, R: Dim, C: Dim> Index<(usize, usize)> for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     type Output = T;
 
@@ -490,7 +490,7 @@ where
 
 impl<T: Float, R: Dim, C: Dim> IndexMut<(usize, usize)> for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         &mut self.0[index]
@@ -499,7 +499,7 @@ where
 
 impl<T: Float, R: Dim, C: Dim> From<OMatrix<T, R, C>> for MatrixOrdMxN<T, R, C>
 where
-    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     fn from(mat: OMatrix<T, R, C>) -> Self {
         Self(mat)
@@ -508,11 +508,11 @@ where
 
 /// A matrix ordered by fuzzy lexicographic ordering. For more info, see
 /// [`MatrixOrdMxN`].
-pub type MatrixOrd<T> = MatrixOrdMxN<T, Dynamic, Dynamic>;
+pub type MatrixOrd<T> = MatrixOrdMxN<T, Dyn, Dyn>;
 
 /// A point ordered by fuzzy lexicographic ordering. For more info, see
 /// [`MatrixOrdMxN`].
-pub type PointOrd<T> = MatrixOrdMxN<T, Dynamic, U1>;
+pub type PointOrd<T> = MatrixOrdMxN<T, Dyn, U1>;
 
 #[cfg(test)]
 mod tests {
