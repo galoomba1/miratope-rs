@@ -7,7 +7,7 @@ pub mod ranked;
 pub mod valid;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     convert::Infallible,
     ops::{Index, IndexMut},
     slice, vec, iter,
@@ -16,6 +16,7 @@ use std::{
 use self::flag::{Flag, FlagSet};
 use super::Polytope;
 
+use itertools::Itertools;
 use vec_like::VecLike;
 
 use partitions::{PartitionVec, partition_vec};
@@ -282,6 +283,7 @@ impl Abstract {
         // element.
         for _ in (2..=rank).rev() {
             let mut subelements = SubelementList::new();
+            let mut checked = HashMap::new();
 
             // Gets the subelements of each element.
             for flag_set in flag_sets {
@@ -294,19 +296,17 @@ impl Abstract {
                     // element before.
                     //
                     // TODO: think of something better?
-                    match new_flag_sets
-                        .iter()
-                        .enumerate()
-                        .find(|(_, new_flag_set)| subset == **new_flag_set)
+                    match checked.get(&subset)
                     {
                         // This is a repeat element.
-                        Some((idx, _)) => {
-                            subs.push(idx);
+                        Some(idx) => {
+                            subs.push(*idx);
                         }
 
                         // This is a new element.
                         None => {
                             subs.push(new_flag_sets.len());
+                            checked.insert(subset.clone(), new_flag_sets.len());
                             new_flag_sets.push(subset);
                         }
                     }
@@ -408,9 +408,9 @@ impl Abstract {
                         }
                     }
                 }
-                let mut valid = true;
-                let mut prev = 123456789; // yes violeta idk how to use None or something
-                for j in flag_changes_of_el {
+                let mut prev = flag_changes_of_el[0];
+                let mut valid = cd[prev];
+                for j in flag_changes_of_el.into_iter().skip(1) {
                     // same component
                     if j == prev + 1 {
                         if !valid {
@@ -466,8 +466,32 @@ impl Abstract {
     /// # Panics
     /// You must call [`Polytope::element_sort`] before calling this method.
     pub fn is_compound(&self) -> bool {
-        let flag_set = FlagSet::new_all(self);
-        flag_set.len() != self.flags().count()
+        if self.rank() < 3 {
+            return false
+        }
+        let mut split = self.clone();
+        for r in 3..self.rank() {
+            split.untangle_elements(r);
+        }
+
+        let mut map = HashMap::new();
+        let mut partition = PartitionVec::new();
+        
+        for facet_idx in 0..split.facet_count() {
+            let facet = &split[self.rank()-1][facet_idx];
+
+            for i in 0..facet.subs.len() {
+                if !map.contains_key(&facet.subs[i]) {
+                    map.insert(facet.subs[i], map.len());
+                    partition.push(facet.subs[i]);
+                }
+                partition.union(
+                    *map.get(&facet.subs[0]).unwrap(),
+                    *map.get(&facet.subs[i]).unwrap()
+                );
+            }
+        }
+        partition.amount_of_sets() > 1
     }
 }
 
@@ -836,6 +860,152 @@ impl Polytope for Abstract {
         output
     }
     
+    /// Splits a polytope into components without making them strongly connected.
+    fn split(&self) -> Vec<Abstract> {
+        // Compounds don't exist below rank 2.
+        if self.rank() < 3 {
+            return vec![self.clone()];
+        }
+        let mut component_map = vec![Vec::new(); self.rank()];
+        let mut els_in_components = vec![HashSet::new(); self.rank()];
+        let mut split = self.clone();
+        for r in 3..self.rank() {
+            component_map[r] = split.untangle_elements(r);
+            let mut set = HashSet::new();
+            for component in &component_map[r] {
+                for el in component {
+                    set.insert(*el);
+                }
+            }
+            els_in_components[r] = set;
+        }
+
+        let mut map = HashMap::new();
+        let mut partition = PartitionVec::new();
+
+        for facet_idx in 0..split.facet_count() {
+            let facet = &split[self.rank()-1][facet_idx];
+
+            for i in 0..facet.subs.len() {
+                if !map.contains_key(&facet.subs[i]) {
+                    map.insert(facet.subs[i], map.len());
+                    partition.push(facet.subs[i]);
+                }
+                partition.union(
+                    *map.get(&facet.subs[0]).unwrap(),
+                    *map.get(&facet.subs[i]).unwrap()
+                );
+            }
+        }
+
+        if partition.amount_of_sets() == 1 {
+            return vec![self.clone()];
+        }
+
+        let mut facets_of_components = vec![Vec::new(); partition.amount_of_sets()];
+        let mut set_of_ridge = HashMap::new();
+
+        for (i, set) in partition.all_sets().enumerate() {
+            for (_, ridge) in set {
+                set_of_ridge.insert(ridge, i);
+            }
+        }
+        for (i, facet) in split[self.rank()-1].iter().enumerate() {
+            facets_of_components[*set_of_ridge.get(&facet.subs[0]).unwrap()].push(i);
+        }
+
+        let mut output = Vec::with_capacity(partition.amount_of_sets());
+
+        for component_facets in facets_of_components {
+            let mut idx_in_rank = vec![BTreeMap::<usize, usize>::new(); self.rank()];
+            let mut el_idxs = component_facets.clone();
+            let mut len_ranks: Vec<usize> = vec![0; self.rank()];
+
+            // facets
+            let mut idx = 0;
+            let mut component_els = HashSet::new();
+            for facet in &el_idxs {
+                if els_in_components[self.rank()-1].contains(facet) {
+                    component_els.insert(*facet);
+                } else {
+                    idx_in_rank[self.rank()-1].insert(*facet, idx);
+                    idx += 1;
+                }
+            }
+            for component in &component_map[self.rank()-1] {
+                let mut found = false;
+                for facet in component {
+                    if component_els.contains(facet) {
+                        idx_in_rank[self.rank()-1].insert(*facet, idx);
+                        found = true;
+                    }
+                }
+                if found {
+                    idx += 1;
+                }
+            }
+            len_ranks[self.rank()-1] = idx;
+
+            // ridges and down to vertices
+            for rank in (2..self.rank()).rev() {
+                let mut idx = 0;
+                let mut component_els = HashSet::new();
+                for el_idx in el_idxs {
+                    for sub in &split[rank][el_idx].subs {
+                        if !idx_in_rank[rank-1].contains_key(&sub) {
+                            if els_in_components[rank-1].contains(&sub) {
+                                component_els.insert(sub);
+                            } else {
+                                idx_in_rank[rank-1].insert(*sub, idx);
+                                idx += 1;
+                            }
+                        }
+                    }
+                }
+                for component in &component_map[rank-1] {
+                    let mut found = false;
+                    for el in component {
+                        if component_els.contains(el) {
+                            idx_in_rank[rank-1].insert(*el, idx);
+                            found = true;
+                        }
+                    }
+                    if found {
+                        idx += 1;
+                    }
+                }
+                len_ranks[rank-1] = idx;
+                el_idxs = Vec::new();
+                for (sub, _) in &idx_in_rank[rank-1] {
+                    el_idxs.push(*sub);
+                }
+            }
+
+            // build the polytope
+            let mut builder = AbstractBuilder::new();
+            builder.push_min();
+            builder.push_vertices(len_ranks[1]);
+            for rank in 2..self.rank() {
+                let mut subs_sets = vec![BTreeSet::new(); len_ranks[rank]];
+                for (old_idx, new_idx) in &idx_in_rank[rank] {
+                    for sub in &split[rank][*old_idx].subs {
+                        subs_sets[*new_idx].insert(*idx_in_rank[rank-1].get(sub).unwrap());
+                    }
+                }
+                builder.push_empty();
+                for el_subs in subs_sets.into_iter().map(|set| Subelements::from(set.into_iter().collect_vec())) {
+                    builder.push_subs(el_subs);
+                }
+            }
+            builder.push_max();
+            unsafe {
+                output.push(builder.build());
+            }
+        }
+
+        output
+    }
+
     /// Gets the element with a given rank and index as a polytope, if it exists.
     fn element(&self, rank: usize, idx: usize) -> Option<Self> {
         Some(ElementHash::new(self, rank, idx)?.to_polytope(self))
@@ -947,72 +1117,91 @@ impl Polytope for Abstract {
     }
 
     /// Splits compound faces into their components.
-    fn untangle_faces(&mut self) {
-        if self.rank() < 4 {
-            return
-        }
-        let mut new_faces = ElementList::new();
-        let self_3_len = self[3].len();
+    /// Outputs a vec of vecs of split faces per component excluding those that aren't compounds.
+    fn untangle_faces(&mut self) -> Vec<Vec<usize>> {
+        return self.untangle_elements(3);
+    }
 
-        for f_i in 0..self_3_len {
-            let current_len = new_faces.len();
+    /// Splits compound elements with a given rank into their components.
+    /// Outputs a vec of vecs of split elements per component excluding those that aren't compounds.
+    /// Only works if all the elements below the given rank are split.
+    fn untangle_elements(&mut self, rank: usize) -> Vec<Vec<usize>> {
+        if self.rank() <= rank || rank < 3 {
+            return Vec::new();
+        }
+        let mut new_els = ElementList::new();
+        let rank_len = self[rank].len();
+        let mut output = Vec::new();
+
+        for e_i in 0..rank_len {
+            let current_len = new_els.len();
             let mut map = HashMap::new();
             let mut partition = PartitionVec::new();
-            let edge_idxs = &self[3][f_i].subs.clone();
+            let sub_idxs = &self[rank][e_i].subs.clone();
             
-            for edge_idx in edge_idxs {
-                let edge = &self[2][*edge_idx];
+            // Splits the element into components.
+            for sub_idx in sub_idxs {
+                let sub = &self[rank-1][*sub_idx];
 
-                if edge.subs.len() != 2 { // This shouldn't happen, but apparently it does sometimes when doing cross-sections
-                    return
-                }
-                for i in 0..=1 {
-                    if map.get(&edge.subs[i]).is_none() {
-                        map.insert(edge.subs[i], map.len());
-                        partition.push(edge.subs[i]);
+                for i in 0..sub.subs.len() {
+                    if !map.contains_key(&sub.subs[i]) {
+                        map.insert(sub.subs[i], map.len());
+                        partition.push(sub.subs[i]);
                     }
+                    partition.union(
+                        *map.get(&sub.subs[0]).unwrap(),
+                        *map.get(&sub.subs[i]).unwrap()
+                    );
                 }
-                partition.union(
-                    *map.get(&edge.subs[0]).unwrap(),
-                    *map.get(&edge.subs[1]).unwrap()
-                );
             }
 
-            let mut set_of_vertex = HashMap::new();
+            let mut set_of_sub_sub = HashMap::new(); // Map of index of subelement of subelement to component index.
+            let mut output_component = Vec::with_capacity(partition.amount_of_sets());
+            if partition.amount_of_sets() > 1 {
+                output_component.push(e_i); // Add first component element index to output component
+            }
             for (i, set) in partition.all_sets().enumerate() {
                 for (_, v) in set {
-                    set_of_vertex.insert(v, i);
+                    set_of_sub_sub.insert(v, i);
                 }
-                if i > 0 {
-                    for sup in &self[3][f_i].sups.clone() {
-                        self[4][*sup].subs.push(new_faces.len() + self_3_len);
+                if i > 0 { // If not first component:
+                    output_component.push(new_els.len() + rank_len); // Add component element index to output component
+                    // Update subs of sups
+                    for sup in &self[rank][e_i].sups.clone() {
+                        self[rank+1][*sup].subs.push(new_els.len() + rank_len);
                     }
-                    new_faces.push(Element::new(Subelements::new(), self[3][f_i].sups.clone()));
+                    new_els.push(Element::new(Subelements::new(), self[rank][e_i].sups.clone())); // Add component leaving subs empty.
                 }
             }
+            if partition.amount_of_sets() > 1 {
+                output.push(output_component);
+            }
 
-            let mut new_face = self[3][f_i].clone();
-            new_face.subs.clear();
+            let mut new_el = self[rank][e_i].clone(); // First component
+            new_el.subs.clear(); // Clear subs of first component
 
-            for edge_idx in edge_idxs {
-                let set_idx = set_of_vertex.get(&self[2][*edge_idx].subs[0]).unwrap();
+            for sub_idx in sub_idxs {
+                let set_idx = set_of_sub_sub.get(&self[rank-1][*sub_idx].subs[0]).unwrap(); // Component index of sub
                 if set_idx > &0 {
-                    let idx = current_len + set_idx - 1;
-                    new_faces[idx].subs.push(*edge_idx);
-                    for sup_i in 0..self[2][*edge_idx].sups.len() {
-                        if &self[2][*edge_idx].sups[sup_i] == &f_i {
-                            self[2][*edge_idx].sups[sup_i] = idx + self_3_len;
+                    let idx = current_len + set_idx - 1; // Face index of component minus the current number of elements
+                    new_els[idx].subs.push(*sub_idx); // Add sub to component
+                    // Update sups of sub
+                    for sup_i in 0..self[rank-1][*sub_idx].sups.len() {
+                        if &self[rank-1][*sub_idx].sups[sup_i] == &e_i {
+                            self[rank-1][*sub_idx].sups[sup_i] = idx + rank_len;
                         }
                     }
                 }
                 else {
-                    new_face.subs.push(*edge_idx);
+                    new_el.subs.push(*sub_idx); // Add sub to first component
                 }
             }
 
-            self[3][f_i] = new_face;
+            self[rank][e_i] = new_el; // Update first component
         }
-        self[3].append(&mut new_faces);
+        self[rank].append(&mut new_els); // Add new faces to polytope
+
+        return output;
     }
 }
 

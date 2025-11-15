@@ -20,7 +20,6 @@ impl Plugin for TopPanelPlugin {
             .init_resource::<Memory>()
             .init_resource::<ShowMemory>()
             .init_resource::<ShowHelp>()
-            .init_resource::<ExportMemory>()
             .init_non_send_resource::<FileDialogToken>()
             .add_system(file_dialog.system())
             // Windows must be the first thing shown.
@@ -54,9 +53,6 @@ pub enum SectionState {
 
         /// Whether we're not updating the cross-section.
         lock: bool,
-
-        /// Whether to update the polytope. This is a bodge.
-        update: bool,
     },
 
     /// The view is inactive.
@@ -98,7 +94,6 @@ impl SectionState {
             hyperplane_pos: minmax.clone().into_iter().map(|m| (m.0 + m.1) / 2.0).collect(),
             flatten: true,
             lock: false,
-            update: false,
         }
     }
 }
@@ -112,7 +107,6 @@ impl Clone for SectionState {
                 hyperplane_pos,
                 flatten,
                 lock,
-                update,
             } = self{
                 
             SectionState::Active{
@@ -122,7 +116,6 @@ impl Clone for SectionState {
                 hyperplane_pos: hyperplane_pos.clone(),
                 flatten: *flatten,
                 lock: *lock,
-                update: *update,
             }
         }
         else
@@ -164,15 +157,6 @@ impl Default for ShowHelp {
     }
 }
 
-/// Stores whether we're exporting the memory and the index of the memory slot.
-pub struct ExportMemory(bool, usize);
-
-impl Default for ExportMemory {
-    fn default() -> Self {
-        Self(false, 0)
-    }
-}
-
 /// Contains all operations that manipulate file dialogs concretely.
 ///
 /// Guarantees that file dialogs will be opened on the main thread, so as to
@@ -197,6 +181,11 @@ impl FileDialogToken {
     fn save_file(&self, name: &str) -> Option<PathBuf> {
         Self::new_file_dialog().set_file_name(name).save_file()
     }
+
+    /// Returns the path given by an export memory dialog.
+    fn pick_folder(&self) -> Option<PathBuf> {
+        Self::new_file_dialog().pick_folder()
+    }
 }
 
 /// The type of file dialog we're showing.
@@ -209,6 +198,9 @@ enum FileDialogMode {
 
     /// We're showing a file dialog to save a file.
     Save,
+
+    /// We're showing a file dialog to export all memory slots.
+    ExportMemory,
 }
 
 /// The file dialog is disabled by default.
@@ -241,6 +233,11 @@ impl FileDialogState {
         self.name = Some(name);
     }
 
+    /// Changes the file dialog mode to [`FileDialogMode::ExportMemory`].
+    pub fn export_memory(&mut self) {
+        self.mode = FileDialogMode::ExportMemory;
+    }
+
     /// Gets the name of the file dialog.
     pub fn unwrap_name(&self) -> &str {
         self.name.as_ref().unwrap()
@@ -251,6 +248,7 @@ impl FileDialogState {
 pub fn file_dialog(
     mut query: Query<'_, '_, &mut Concrete>,
     mut name: ResMut<'_, PolyName>,
+    memory: ResMut<'_, Memory>,
     file_dialog_state: Res<'_, FileDialogState>,
     file_dialog: NonSend<'_, FileDialogToken>,
 ) {
@@ -274,10 +272,30 @@ pub fn file_dialog(
                         match Concrete::from_path(&path) {
                             Ok(q) => {
                                 *p = q;
-                                let file_name = path.file_name().unwrap().to_str().unwrap();
-                                name.0 = file_name[..file_name.len()-4].into();
+                                name.0 = path.file_stem().unwrap().to_string_lossy().into_owned();
                             }
                             Err(err) => eprintln!("File open failed: {}", err),
+                        }
+                    }
+                }
+            }
+
+            // We want to export all memory slots to a folder.
+            FileDialogMode::ExportMemory => {
+                if let Some(path) = file_dialog.pick_folder() {
+                    for idx in 0..memory.len() {
+                        if let Some((poly, label)) = &memory[idx] {
+                            let name = match label {
+                                None => {
+                                    format!("polytope {}", idx)
+                                }
+                                Some(a) => a.to_string()
+                            };
+                            let mut poly_path = path.clone();
+                            poly_path.push(name + ".off");
+                            if let Err(err) = poly.con().to_path(poly_path, Default::default()) {
+                                eprintln!("File saving failed: {}", err);
+                            }
                         }
                     }
                 }
@@ -340,7 +358,6 @@ pub fn show_top_panel(
     mut memory: ResMut<'_, Memory>,
     mut show_memory: ResMut<'_, ShowMemory>,
     mut show_help: ResMut<'_, ShowHelp>,
-    mut export_memory: ResMut<'_, ExportMemory>,
     mut colors: (ResMut<'_, ClearColor>, ResMut<'_, MeshColor>, ResMut<'_, WfColor>),
     mut slots_per_page: ResMut<'_, SlotsPerPage>,
 
@@ -384,8 +401,7 @@ pub fn show_top_panel(
                 }
 
                 if ui.button("Export all memory slots").clicked() {
-                    export_memory.0 = true;
-                    export_memory.1 = 0;
+                    file_dialog_state.export_memory();
                 }
 
                 ui.separator();
@@ -395,30 +411,6 @@ pub fn show_top_panel(
                     std::process::exit(0);
                 }
             });
-
-            if export_memory.0 {
-                let idx = export_memory.1;
-                if idx == memory.len() {
-                    export_memory.1 = 0;
-                    export_memory.0 = false;
-                }
-                else {
-                    if let Some((poly, label)) = &memory[idx] {
-                        if let Some(mut p) = query.iter_mut().next() {
-                            *p = poly.clone();
-                            let name = match label {
-                                None => {
-                                    format!("polytope {}", idx)
-                                }
-                                Some(a) => a.to_string()
-                            };
-                            poly_name.0 = name.clone();
-                            file_dialog_state.save(name);
-                        }
-                    }
-                    export_memory.1 += 1;
-                }
-            }
 
             // Configures the view.
             menu::menu(ui, "View", |ui| {
@@ -965,8 +957,13 @@ fn show_views(
         flatten,
         lock,
         ..
-    } = (*section_state).clone()
+    } = &(*section_state)
     {
+        let minmax = minmax.clone();
+        let hyperplane_pos = hyperplane_pos.clone();
+        let flatten = flatten.clone();
+        let lock = lock.clone();
+
         ui.label("Cross section settings:");
         ui.spacing_mut().slider_width = ui.available_width() / 3.0;
 
@@ -1027,7 +1024,7 @@ fn show_views(
             // Cross sections on a lower dimension
             if ui.add(egui::Button::new("+").enabled(
                 section_direction.len() <
-                    if let SectionState::Active {original_polytope, ..} = section_state.clone() {
+                    if let SectionState::Active {original_polytope, ..} = &*section_state {
                         original_polytope.rank()-3
                     } else {
                         0
@@ -1074,15 +1071,6 @@ fn show_views(
         });
     }
 
-    if section_direction.is_changed() {
-        if let SectionState::Active {
-            update,
-            ..
-        } = section_state.as_mut() {
-            *update = true; // Force an update of the polytope.
-        }
-    }
-
     if section_state.is_changed() {
         if let SectionState::Active {
             original_polytope,
@@ -1091,9 +1079,7 @@ fn show_views(
             minmax,
             flatten,
             lock,
-            update,
         } = section_state.as_mut() {
-            *update = false;
 
             // We don't update the view if it's locked.
             if *lock {

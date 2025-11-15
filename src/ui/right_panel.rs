@@ -53,6 +53,9 @@ pub struct ElementTypesRes {
 
     /// Whether we're updating `main`.
     pub main_updating: bool,
+
+    /// Whether we want to defiss the components when generating them.
+    pub defiss: bool,
 }
 
 impl Default for ElementTypesRes {
@@ -65,6 +68,7 @@ impl Default for ElementTypesRes {
             components: None,
             main: true,
             main_updating: false,
+            defiss: false,
         }
     }
 }
@@ -123,12 +127,13 @@ impl ElementTypesRes {
             components: None,
             main: true,
             main_updating: false,
+            defiss: self.defiss,
         }
     }
 
     fn generate_components(&mut self) {
         self.poly.element_sort();
-        self.components = Some(self.poly.defiss());
+        self.components = if self.defiss { Some(self.poly.defiss()) } else { Some(self.poly.split()) };
     }
 }
 
@@ -249,7 +254,7 @@ pub fn show_right_panel(
                                     }
                                 }
 
-                                if let SectionState::Active{..} = section_state.clone() {
+                                if let SectionState::Active{..} = *section_state {
                                     if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {
@@ -283,6 +288,9 @@ pub fn show_right_panel(
                             if ui.button("Generate").clicked() {
                                 element_types.generate_components();
                             }
+                            ui.add(
+                                egui::Checkbox::new(&mut element_types.defiss, "Defiss")
+                            );
                         }
                     });
 

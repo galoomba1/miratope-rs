@@ -1875,9 +1875,16 @@ impl MemoryWindow for FacetingSettings {
         ui.horizontal(|ui| {
             ui.radio_value(&mut self.save_to_file, true, "Save to file");
             ui.label("Path:");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.file_path).enabled(self.save_to_file)
-            );
+
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.file_path).enabled(self.save_to_file)
+                );
+
+                if ui.button("...").clicked() {
+                    self.file_path = rfd::FileDialog::new().pick_folder().unwrap().to_string_lossy().into_owned()
+                }
+            });
         });
 
         ui.separator();
