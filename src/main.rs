@@ -13,6 +13,10 @@
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use bevy_render::{
+    batching::gpu_preprocessing::{GpuPreprocessingMode, GpuPreprocessingSupport},
+    RenderApp,
+};
 use miratope_core::file::FromFile;
 
 use ui::{
@@ -58,12 +62,18 @@ const EPS: Float = <Float as miratope_core::float::Float>::EPS;
 /// Loads all of the necessary systems for the application to run.
 fn main() {
     unsafe { std::env::set_var("RUST_BACKTRACE", "full"); }
-    App::new()
+    
+    let mut app = App::new();
+    app
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_plugins(MiratopePlugins)
-        .add_systems(Startup, setup)
-        .run();
+        .add_systems(Startup, setup);
+    app.sub_app_mut(RenderApp)
+        .insert_resource(GpuPreprocessingSupport {
+            max_supported_mode: GpuPreprocessingMode::None,
+        });
+    app.run();
 }
 
 /// Initializes the scene.
