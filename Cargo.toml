@@ -29,6 +29,7 @@ rfd = "0.15.4"
 ron = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
 bevy_egui = "0.37.1"
+bevy_render = "0.17.2"
 
 [dependencies.bevy]
 version = "0.17.2"
@@ -39,7 +40,7 @@ features = [
     "bevy_gltf",
     "bevy_winit",
     "bevy_picking",
-    #"bevy_render", only unneded because bevy_egui adds it back
+    "bevy_render",
 ]
 
 
