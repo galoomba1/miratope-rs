@@ -3,13 +3,10 @@
 use crate::Concrete;
 
 use bevy::prelude::*;
-use bevy_egui::{
-    egui,
-    EguiContext,
-};
+use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
-
+use crate::ui::top_panel::{show_top_panel, SectionDirectionVec};
 use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName};
 
 #[derive(Clone, Copy, Debug)]
@@ -30,7 +27,7 @@ pub struct ElementTypeWithData {
     radius: Option<f64>,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Resource)]
 pub struct ElementTypesRes {
     /// Whether the panel has been activated. Should be `false` on startup and `true`
     /// once `Generate` is clicked.
@@ -139,11 +136,9 @@ impl Plugin for RightPanelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ElementTypesRes>()
             // The top panel must be shown first.
-            .add_system(
+            .add_systems(EguiPrimaryContextPass,
                 show_right_panel
-                    .system()
-                    .label("show_right_panel")
-                    .after("show_top_panel"),
+                    .after(show_top_panel),
             );
     }
 }
@@ -152,31 +147,31 @@ impl Plugin for RightPanelPlugin {
 #[allow(clippy::too_many_arguments)]
 pub fn show_right_panel(
     // Info about the application state.
-    egui_ctx: Res<'_, EguiContext>,
+    mut egui_ctx: EguiContexts<'_, '_>,
     mut query: Query<'_, '_, &mut Concrete>,
     mut poly_name: ResMut<'_, PolyName>,
 
     // The Miratope resources controlled by the right panel.
     mut element_types: ResMut<'_, ElementTypesRes>,
-    mut section_direction: ResMut<'_, Vec<SectionDirection>>,
+    mut section_direction: ResMut<'_, SectionDirectionVec>,
     section_state: Res<'_, SectionState>,
 
-) {
+) -> Result {
     // The right panel.
     egui::SidePanel::right("right_panel")
         .default_width(300.0)
         .max_width(450.0)
-        .show(egui_ctx.ctx(), |ui| {
+        .show(egui_ctx.ctx_mut()?, |ui| {
             
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new("Generate").enabled(!element_types.main)).clicked() {
+                if ui.add(egui::Button::selectable(!element_types.main, "Generate")).clicked() {
                     if let Some(p) = query.iter_mut().next() {
                         element_types.main = true;
                         *element_types = element_types.from_poly(p, poly_name.0.clone());
                     }
                 }
     
-                if ui.add(egui::Button::new("Load").enabled(!element_types.main)).clicked() {
+                if ui.add(egui::Button::selectable(!element_types.main,"Load")).clicked() {
                     if let Some(mut p) = query.iter_mut().next() {
                         element_types.main = true;
                         element_types.main_updating = true;
@@ -189,7 +184,7 @@ pub fn show_right_panel(
             ui.separator();
 
             if element_types.active {
-                egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::containers::ScrollArea::vertical().show(ui, |ui| {
                     for (r, types) in element_types.types.clone().into_iter().enumerate().skip(1) {
                         let poly = &element_types.poly;
                         let rank = element_types.poly.rank();
@@ -250,10 +245,10 @@ pub fn show_right_panel(
                                 }
 
                                 if let SectionState::Active{..} = section_state.clone() {
-                                    if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
+                                    if section_direction.0[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {
-                                                section_direction[0] = SectionDirection(Vector::from(Point::from(
+                                                section_direction.0[0] = SectionDirection(Vector::from(Point::from(
                                                     Subspace::from_points(element.vertices.iter())
                                                         .project(&Point::zeros(rank-1))
                                                         .normalize()
@@ -318,4 +313,5 @@ pub fn show_right_panel(
                 }); 
             }
     });
+    Ok(())
 }

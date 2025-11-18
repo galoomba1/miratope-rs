@@ -6,25 +6,27 @@ use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
     math::EulerRot,
     prelude::*,
-    render::camera::Camera,
+    camera::Camera,
 };
-use bevy_egui::{egui::CtxRef, EguiContext};
+use bevy::window::PrimaryWindow;
+use bevy_egui::{egui::Context, EguiContexts};
+use crate::ui::library::show_library;
 
 /// The plugin handling all camera input.
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<CameraInputEvent>()
+        app.add_message::<CameraInputEvent>()
             .init_resource::<ProjectionType>()
             // We register inputs after the library has been shown, so that we
             // know whether mouse input should register.
-            .add_system(add_cam_input_events.system().after("show_library"))
-            .add_system(update_cameras_and_anchors.system());
+            .add_systems(Update, add_cam_input_events.after(show_library))
+            .add_systems(Update, update_cameras_and_anchors);
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Resource)]
 pub enum ProjectionType {
     /// We're projecting orthogonally.
     Orthogonal,
@@ -55,7 +57,7 @@ impl ProjectionType {
 }
 
 /// An input event for the camera.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Message)]
 pub enum CameraInputEvent {
     /// Rotate the camera about the anchor.
     RotateAnchor(Vec2),
@@ -106,15 +108,15 @@ impl Mul<CameraInputEvent> for f32 {
 
 impl CameraInputEvent {
     fn rotate(vec: Vec2, anchor_tf: &mut Transform) {
-        anchor_tf.rotate(Quat::from_euler(EulerRot::YXZ, vec.x, vec.y, 0.));
+        anchor_tf.rotate_local(Quat::from_euler(EulerRot::YXZ, vec.x, vec.y, 0.));
     }
 
     fn translate(vec: Vec3, anchor_tf: &mut Transform, cam_gtf: &GlobalTransform) {
-        anchor_tf.translation += cam_gtf.rotation * vec;
+        anchor_tf.translation += cam_gtf.rotation() * vec;
     }
 
     fn roll(roll: f32, anchor_tf: &mut Transform) {
-        anchor_tf.rotate(Quat::from_euler(EulerRot::YXZ, 0., 0., roll));
+        anchor_tf.rotate_local(Quat::from_euler(EulerRot::YXZ, 0., 0., roll));
     }
 
     /// Zooms into the camera.
@@ -149,18 +151,18 @@ impl CameraInputEvent {
     /// Processes camera events coming from the keyboard.
     fn cam_events_from_kb(
         time: &Time,
-        keyboard: &Input<KeyCode>,
-        cam_inputs: &mut EventWriter<'_, '_, CameraInputEvent>,
-        ctx: &CtxRef,
+        keyboard: &ButtonInput<KeyCode>,
+        cam_inputs: &mut MessageWriter<'_, CameraInputEvent>,
+        ctx: &Context,
     ) -> (f32, f32) {
         // TODO: make the spin rate modifiable in preferences.
         const SPIN_RATE: f32 = std::f32::consts::TAU / 5.;
         const ROLL: CameraInputEvent = CameraInputEvent::Roll(SPIN_RATE);
 
-        let real_scale = time.delta_seconds();
-        let scale = if keyboard.pressed(KeyCode::LControl) | keyboard.pressed(KeyCode::RControl) {
+        let real_scale = time.delta_secs();
+        let scale = if keyboard.pressed(KeyCode::ControlLeft) | keyboard.pressed(KeyCode::ControlRight) {
             real_scale * 1.5
-        } else if keyboard.pressed(KeyCode::LShift) | keyboard.pressed(KeyCode::RShift) {
+        } else if keyboard.pressed(KeyCode::ShiftLeft) | keyboard.pressed(KeyCode::ShiftRight) {
             real_scale / 4.
         } else {
             real_scale / 1.5
@@ -172,18 +174,18 @@ impl CameraInputEvent {
 
         if !ctx.wants_keyboard_input() {
             for keycode in keyboard.get_pressed() {
-                cam_inputs.send(match keycode {
-                    KeyCode::S => -scale * ud,
-                    KeyCode::W => scale * ud,
-                    KeyCode::A => -scale * lr,
-                    KeyCode::D => scale * lr,
-                    KeyCode::R => -scale * fb,
-                    KeyCode::F => scale * fb,
-                    KeyCode::Q => scale * -1.2 * ROLL,
-                    KeyCode::E => scale * 1.2 * ROLL,
-                    KeyCode::X => Self::Reset,
+                cam_inputs.write(match keycode {
+                    KeyCode::KeyS => -scale * ud,
+                    KeyCode::KeyW => scale * ud,
+                    KeyCode::KeyA => -scale * lr,
+                    KeyCode::KeyD => scale * lr,
+                    KeyCode::KeyR => -scale * fb,
+                    KeyCode::KeyF => scale * fb,
+                    KeyCode::KeyQ => scale * -1.2 * ROLL,
+                    KeyCode::KeyE => scale * 1.2 * ROLL,
+                    KeyCode::KeyX => Self::Reset,
                     _ => continue,
-                })
+                });
             }
         }
 
@@ -192,34 +194,34 @@ impl CameraInputEvent {
 
     /// Processes camera events coming from the mouse buttons.
     fn cam_events_from_mouse(
-        mouse_button: &Input<MouseButton>,
-        mut mouse_move: EventReader<'_, '_, MouseMotion>,
+        mouse_button: &ButtonInput<MouseButton>,
+        mut mouse_move: MessageReader<'_, '_, MouseMotion>,
         height: f32,
         real_scale: f32,
-        cam_inputs: &mut EventWriter<'_, '_, Self>,
+        cam_inputs: &mut MessageWriter<'_, Self>,
     ) {
         if mouse_button.pressed(MouseButton::Left) || mouse_button.pressed(MouseButton::Right) {
-            for MouseMotion { mut delta } in mouse_move.iter() {
+            for &MouseMotion { mut delta } in mouse_move.read() {
                 delta.x /= height;
                 delta.y /= height;
-                cam_inputs.send(Self::RotateAnchor(-800. * real_scale * delta))
+                cam_inputs.write(Self::RotateAnchor(-800. * real_scale * delta));
             }
         }
     }
 
     /// Processes camera events coming from the mouse wheel.
     fn cam_events_from_wheel(
-        mut mouse_wheel: EventReader<'_, '_, MouseWheel>,
+        mut mouse_wheel: MessageReader<'_, '_, MouseWheel>,
         scale: f32,
-        cam_inputs: &mut EventWriter<'_, '_, Self>,
+        cam_inputs: &mut MessageWriter<'_, Self>,
     ) {
-        for MouseWheel { unit, y, .. } in mouse_wheel.iter() {
+        for MouseWheel { unit, y, .. } in mouse_wheel.read() {
             let unit_scale = match unit {
                 MouseScrollUnit::Line => 12.,
                 MouseScrollUnit::Pixel => 1.,
             };
 
-            cam_inputs.send(Self::Zoom(unit_scale * -scale * y))
+            cam_inputs.write(Self::Zoom(unit_scale * -scale * y));
         }
     }
 }
@@ -228,20 +230,20 @@ impl CameraInputEvent {
 #[allow(clippy::too_many_arguments)]
 fn add_cam_input_events(
     time: Res<'_, Time>,
-    keyboard: Res<'_, Input<KeyCode>>,
-    mouse_button: Res<'_, Input<MouseButton>>,
-    mouse_move: EventReader<'_, '_, MouseMotion>,
-    mouse_wheel: EventReader<'_, '_, MouseWheel>,
-    windows: Res<'_, Windows>,
-    mut cam_inputs: EventWriter<'_, '_, CameraInputEvent>,
-    egui_ctx: Res<'_, EguiContext>,
-) {
+    keyboard: Res<'_, ButtonInput<KeyCode>>,
+    mouse_button: Res<'_, ButtonInput<MouseButton>>,
+    mouse_move: MessageReader<'_, '_, MouseMotion>,
+    mouse_wheel: MessageReader<'_, '_, MouseWheel>,
+    mut window_query: Query<'_, '_, &Window, With<PrimaryWindow>>,
+    mut cam_inputs: MessageWriter<'_, CameraInputEvent>,
+    mut egui_ctx: EguiContexts<'_, '_>,
+) -> Result {
     let height = {
-        let primary_win = windows.get_primary().expect("There is no primary window");
+        let primary_win = window_query.single_mut().expect("There is no primary window");
         primary_win.physical_height() as f32
     };
 
-    let ctx = egui_ctx.ctx();
+    let ctx = egui_ctx.ctx_mut()?;
     let cam_inputs = &mut cam_inputs;
     let (real_scale, scale) =
         CameraInputEvent::cam_events_from_kb(&time, &keyboard, cam_inputs, ctx);
@@ -256,34 +258,33 @@ fn add_cam_input_events(
             cam_inputs,
         );
         CameraInputEvent::cam_events_from_wheel(mouse_wheel, scale, cam_inputs);
-    }
+    };
+    Ok(())
 }
 
 fn update_cameras_and_anchors(
-    mut events: EventReader<'_, '_, CameraInputEvent>,
+    mut events: MessageReader<'_, '_, CameraInputEvent>,
     q: Query<
         '_,
         '_,
         (
             &mut Transform,
             &GlobalTransform,
-            Option<&Parent>,
+            Option<&ChildOf>,
             Option<&Camera>,
         ),
     >,
 ) {
     // SAFETY: see the remark below.
-    for (mut cam_tf, cam_gtf, parent, cam) in unsafe { q.iter_unsafe() } {
+    for (mut cam_tf, cam_gtf, child_of, cam) in unsafe { q.iter_unsafe() } {
         if cam.is_some() {
-            if let Some(parent) = parent {
+            if let Some(child_of) = child_of {
                 // SAFETY: we assume that a camera isn't its own parent (this
                 // shouldn't ever happen on purpose)
-                if let Ok(mut anchor_tf) =
-                    unsafe { q.get_component_unchecked_mut::<Transform>(parent.0) }
-                {
-                    for event in events.iter() {
-                        event.update_camera_and_anchor(&mut anchor_tf, &mut cam_tf, cam_gtf);
-                    }
+                let mut anchor_tf =
+                    unsafe { q.get_unchecked(child_of.parent()).unwrap().0 };
+                for event in events.read() {
+                    event.update_camera_and_anchor(&mut anchor_tf, &mut cam_tf, cam_gtf);
                 }
             }
         }

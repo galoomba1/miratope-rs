@@ -553,6 +553,60 @@ impl Polytope for Abstract {
         }
     }
 
+    /// Builds a [duopyramid](https://polytope.miraheze.org/wiki/Pyramid_product)
+    /// from two polytopes.
+    ///
+    /// The vertices of the result will be those corresponding to the vertices
+    /// of `self` in the same order, following those corresponding to `other` in
+    /// the same order.
+    fn duopyramid(&self, other: &Self) -> Self {
+        product::duopyramid(self, other)
+    }
+
+    /// Builds a [duoprism](https://polytope.miraheze.org/wiki/Prism_product)
+    /// from two polytopes.
+    fn duoprism(&self, other: &Self) -> Self {
+        product::duoprism(self, other)
+    }
+
+    /// Builds a [duotegum](https://polytope.miraheze.org/wiki/Tegum_product)
+    /// from two polytopes.
+    ///
+    /// The vertices of the result will be those corresponding to the vertices
+    /// of `self` in the same order, following those corresponding to `other` in
+    /// the same order.
+    fn duotegum(&self, other: &Self) -> Self {
+        product::duotegum(self, other)
+    }
+
+    /// Builds a [duocomb](https://polytope.miraheze.org/wiki/Honeycomb_product)
+    /// from two polytopes.
+    fn duocomb(&self, other: &Self) -> Self {
+        product::duocomb(self, other)
+    }
+
+    /// Builds a [star product](https://en.wikipedia.org/wiki/Star_product)
+    /// of two polytopes.
+    fn star_product(&self, other: &Self) -> Self {
+        let mut product = self.clone();
+        product.ranks.pop();
+        for r in 1..=other.rank() {
+            product.ranks.push(other[r].clone());
+        }
+
+        let bottom_facet_count = self.el_count(self.rank()-1);
+        let top_vertex_count = other.el_count(1);
+
+        for bottom_facet in &mut product[self.rank()-1] {
+            bottom_facet.sups = (0..top_vertex_count).collect();
+        }
+        for top_vertex in &mut product[self.rank()-0] {
+            top_vertex.subs = (0..bottom_facet_count).collect();
+        }
+
+        product
+    }
+
     /// Builds an [orthoplex](https://polytope.miraheze.org/wiki/Orthoplex) with
     /// a given rank.
     fn orthoplex(rank: usize) -> Self {
@@ -561,6 +615,63 @@ impl Polytope for Abstract {
         } else {
             Self::multitegum(iter::repeat(&Self::dyad()).take(rank - 1))
         }
+    }
+
+    /// Converts a polytope into its dual.
+    fn try_dual(&self) -> Result<Self, Self::DualError> {
+        Ok(self.dual())
+    }
+
+    /// Converts a polytope into its dual in place. Use [`Self::dual_mut`] instead, as
+    /// this method can never fail.
+    fn try_dual_mut(&mut self) -> Result<(), Self::DualError> {
+        self.dual_mut();
+        Ok(())
+    }
+
+    /// "Appends" a polytope into another, creating a compound polytope.
+    ///
+    /// # Panics
+    /// This method will panic if the polytopes have different ranks.
+    fn comp_append(&mut self, p: Self) {
+        let rank = self.rank();
+        if rank <= 1 {
+            return;
+        }
+
+        // The polytopes must have the same ranks.
+        assert_eq!(
+            rank,
+            p.rank(),
+            "polytopes in a compound must have the same rank"
+        );
+
+        // The element counts of the polytope, except we pretend there's no min
+        // or max elements.
+        let mut el_counts: Vec<_> = self.el_count_iter().collect();
+        el_counts[0] = 0;
+        el_counts[rank] = 0;
+
+        for (r, elements) in p.into_iter().enumerate().skip(1).take(rank - 1) {
+            for mut el in elements.into_iter() {
+                let sub_offset = el_counts[r - 1];
+                let sup_offset = el_counts[r + 1];
+
+                for sub in el.subs.iter_mut() {
+                    *sub += sub_offset;
+                }
+
+                for sup in el.sups.iter_mut() {
+                    *sup += sup_offset;
+                }
+
+                self[r].push(el);
+            }
+        }
+
+        // We don't need to do this every single time.
+        *self.ranks.min_mut() = Element::min(self.vertex_count());
+        *self.ranks.max_mut() = Element::max(self.facet_count());
     }
 
     fn vertex_map(&self) -> ElementMap<usize> {
@@ -585,17 +696,111 @@ impl Polytope for Abstract {
 
         vertex_map
     }
-
-    /// Converts a polytope into its dual.
-    fn try_dual(&self) -> Result<Self, Self::DualError> {
-        Ok(self.dual())
+    
+    /// Gets the element with a given rank and index as a polytope, if it exists.
+    fn element(&self, rank: usize, idx: usize) -> Option<Self> {
+        Some(ElementHash::new(self, rank, idx)?.to_polytope(self))
     }
 
-    /// Converts a polytope into its dual in place. Use [`Self::dual_mut`] instead, as
-    /// this method can never fail.
-    fn try_dual_mut(&mut self) -> Result<(), Self::DualError> {
-        self.dual_mut();
-        Ok(())
+    /// Gets the element figure with a given rank and index as a polytope.
+    fn element_fig(&self, rank: usize, idx: usize) -> Result<Option<Self>, Self::DualError> {
+        if rank <= self.rank() {
+            // todo: this is quite inefficient for a small element figure since
+            // we take the dual of the entire thing.
+            if let Some(mut element_fig) = self.try_dual()?.element(self.rank() - rank, idx) {
+                element_fig.try_dual_mut()?;
+                return Ok(Some(element_fig));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Makes a polytope strongly connected. Splits compounds into their components.
+    fn defiss(&self) -> Vec<Abstract> {
+        if self.rank() < 1 {
+            return vec![Abstract::nullitope()];
+        }
+
+        let mut output = Vec::<Abstract>::new();
+
+        let flags: Vec<Flag> = self.flags().collect();
+        let mut flags_map_back = HashMap::new();
+        for (idx, flag) in flags.iter().enumerate() {
+            flags_map_back.insert(flag, idx);
+        }
+
+        let mut partitions: Vec<PartitionVec<()>> = vec![partition_vec![(); flags.len()]; self.rank()];
+
+        for (idx, flag) in flags.iter().enumerate() {
+            for change in 1..self.rank() {
+                let changed_flag = flag.change(self, change);
+                let changed_idx = flags_map_back.get(&changed_flag).unwrap();
+
+                for rank in 0..self.rank() {
+                    if rank != change {
+                        partitions[rank].union(idx, *changed_idx);
+                    }
+                }
+            }
+        }
+
+        let components = partitions[0].all_sets();
+
+        for component in components {
+            let mut elements = Ranks::with_rank_capacity(self.rank());
+            elements.push(ElementList::from(vec![Element::new(Subelements::new(), Superelements::new())]));
+            for _ in 1..self.rank() {
+                elements.push(ElementList::new());
+            }
+
+            let mut idx_in_rank = vec![HashMap::<usize, usize>::new(); self.rank()];
+            let mut counts = vec![0; self.rank()];
+            for (flag_idx, _) in component {
+                let mut sub = 0;
+
+                for rank in 1..self.rank() {
+                    match idx_in_rank[rank].get(&flag_idx) {
+                        Some(idx) => {
+                            if !elements[rank][*idx].subs.contains(&sub) {
+                                elements[rank][*idx].subs.push(sub);
+                            }
+
+                            sub = *idx;
+                        }
+                        None => {
+                            let set = partitions[rank].set(flag_idx);
+
+                            for (el, _) in set {
+                                idx_in_rank[rank].insert(el, counts[rank]);
+                            }
+                            elements[rank].push(
+                                Element{
+                                    subs: Subelements::from(vec![sub]),
+                                    sups: Superelements::from(vec![]),
+                                });
+
+                            sub = counts[rank];
+                            counts[rank] += 1;
+                        }
+                    }
+                }
+            }
+            let mut builder = AbstractBuilder::new();
+            for rank in elements {
+                builder.push_empty();
+                for el in rank {
+                    builder.push_subs(el.subs);
+                }
+            }
+            builder.push_max();
+            unsafe {
+                let polytope = builder.build();
+                output.push(polytope);
+            }
+        }
+
+        output
     }
 
     /// Builds the [Petrial](https://polytope.miraheze.org/wiki/Petrial) of a
@@ -692,221 +897,9 @@ impl Polytope for Abstract {
         Some(Self::polygon(self.petrie_polygon_vertices(flag)?.len()))
     }
 
-    /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)
-    /// based on a given polytope. Use [`Self::antiprism`] instead, as this
-    /// method can never fail.
-    fn try_antiprism(&self) -> Result<Self, Self::DualError> {
-        Ok(self.antiprism())
-    }
-
     /// Returns the flag omnitruncate of a polytope.
     fn omnitruncate(&self) -> Self {
         self.omnitruncate_and_flags().0
-    }
-
-    /// "Appends" a polytope into another, creating a compound polytope.
-    ///
-    /// # Panics
-    /// This method will panic if the polytopes have different ranks.
-    fn comp_append(&mut self, p: Self) {
-        let rank = self.rank();
-        if rank <= 1 {
-            return;
-        }
-
-        // The polytopes must have the same ranks.
-        assert_eq!(
-            rank,
-            p.rank(),
-            "polytopes in a compound must have the same rank"
-        );
-
-        // The element counts of the polytope, except we pretend there's no min
-        // or max elements.
-        let mut el_counts: Vec<_> = self.el_count_iter().collect();
-        el_counts[0] = 0;
-        el_counts[rank] = 0;
-
-        for (r, elements) in p.into_iter().enumerate().skip(1).take(rank - 1) {
-            for mut el in elements.into_iter() {
-                let sub_offset = el_counts[r - 1];
-                let sup_offset = el_counts[r + 1];
-
-                for sub in el.subs.iter_mut() {
-                    *sub += sub_offset;
-                }
-
-                for sup in el.sups.iter_mut() {
-                    *sup += sup_offset;
-                }
-
-                self[r].push(el);
-            }
-        }
-
-        // We don't need to do this every single time.
-        *self.ranks.min_mut() = Element::min(self.vertex_count());
-        *self.ranks.max_mut() = Element::max(self.facet_count());
-    }
-
-    /// Makes a polytope strongly connected. Splits compounds into their components.
-    fn defiss(&self) -> Vec<Abstract> {
-        if self.rank() < 1 {
-            return vec![Abstract::nullitope()];
-        }
-
-        let mut output = Vec::<Abstract>::new();
-
-        let flags: Vec<Flag> = self.flags().collect();
-        let mut flags_map_back = HashMap::new();
-        for (idx, flag) in flags.iter().enumerate() {
-            flags_map_back.insert(flag, idx);
-        }
-
-        let mut partitions: Vec<PartitionVec<()>> = vec![partition_vec![(); flags.len()]; self.rank()];
-
-        for (idx, flag) in flags.iter().enumerate() {
-            for change in 1..self.rank() {
-                let changed_flag = flag.change(self, change);
-                let changed_idx = flags_map_back.get(&changed_flag).unwrap();
-                
-                for rank in 0..self.rank() {
-                    if rank != change {
-                        partitions[rank].union(idx, *changed_idx);
-                    }
-                }
-            }
-        }
-
-        let components = partitions[0].all_sets();
-
-        for component in components {
-            let mut elements = Ranks::with_rank_capacity(self.rank());
-            elements.push(ElementList::from(vec![Element::new(Subelements::new(), Superelements::new())]));
-            for _ in 1..self.rank() {
-                elements.push(ElementList::new());
-            }
-
-            let mut idx_in_rank = vec![HashMap::<usize, usize>::new(); self.rank()];
-            let mut counts = vec![0; self.rank()];
-            for (flag_idx, _) in component {
-                let mut sub = 0;
-
-                for rank in 1..self.rank() {
-                    match idx_in_rank[rank].get(&flag_idx) {
-                        Some(idx) => {
-                            if !elements[rank][*idx].subs.contains(&sub) {
-                                elements[rank][*idx].subs.push(sub);
-                            }
-
-                            sub = *idx;
-                        }
-                        None => {
-                            let set = partitions[rank].set(flag_idx);
-
-                            for (el, _) in set {
-                                idx_in_rank[rank].insert(el, counts[rank]);
-                            }
-                            elements[rank].push(
-                                Element{
-                                    subs: Subelements::from(vec![sub]),
-                                    sups: Superelements::from(vec![]),
-                                });
-
-                            sub = counts[rank];
-                            counts[rank] += 1;
-                        }
-                    }
-                }
-            }
-            let mut builder = AbstractBuilder::new();
-            for rank in elements {
-                builder.push_empty();
-                for el in rank {
-                    builder.push_subs(el.subs);
-                }
-            }
-            builder.push_max();
-            unsafe {
-                let polytope = builder.build();
-                output.push(polytope);
-            }
-        }
-
-        output
-    }
-    
-    /// Gets the element with a given rank and index as a polytope, if it exists.
-    fn element(&self, rank: usize, idx: usize) -> Option<Self> {
-        Some(ElementHash::new(self, rank, idx)?.to_polytope(self))
-    }
-
-    /// Gets the element figure with a given rank and index as a polytope.
-    fn element_fig(&self, rank: usize, idx: usize) -> Result<Option<Self>, Self::DualError> {
-        if rank <= self.rank() {
-            // todo: this is quite inefficient for a small element figure since
-            // we take the dual of the entire thing.
-            if let Some(mut element_fig) = self.try_dual()?.element(self.rank() - rank, idx) {
-                element_fig.try_dual_mut()?;
-                return Ok(Some(element_fig));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Builds a [duopyramid](https://polytope.miraheze.org/wiki/Pyramid_product)
-    /// from two polytopes.
-    ///
-    /// The vertices of the result will be those corresponding to the vertices
-    /// of `self` in the same order, following those corresponding to `other` in
-    /// the same order.
-    fn duopyramid(&self, other: &Self) -> Self {
-        product::duopyramid(self, other)
-    }
-
-    /// Builds a [duoprism](https://polytope.miraheze.org/wiki/Prism_product)
-    /// from two polytopes.
-    fn duoprism(&self, other: &Self) -> Self {
-        product::duoprism(self, other)
-    }
-
-    /// Builds a [duotegum](https://polytope.miraheze.org/wiki/Tegum_product)
-    /// from two polytopes.
-    ///
-    /// The vertices of the result will be those corresponding to the vertices
-    /// of `self` in the same order, following those corresponding to `other` in
-    /// the same order.
-    fn duotegum(&self, other: &Self) -> Self {
-        product::duotegum(self, other)
-    }
-
-    /// Builds a [duocomb](https://polytope.miraheze.org/wiki/Honeycomb_product)
-    /// from two polytopes.
-    fn duocomb(&self, other: &Self) -> Self {
-        product::duocomb(self, other)
-    }
-
-    /// Builds a [star product](https://en.wikipedia.org/wiki/Star_product)
-    /// of two polytopes.
-    fn star_product(&self, other: &Self) -> Self {
-        let mut product = self.clone();
-        product.ranks.pop();
-        for r in 1..=other.rank() {
-            product.ranks.push(other[r].clone());
-        }
-
-        let bottom_facet_count = self.el_count(self.rank()-1);
-        let top_vertex_count = other.el_count(1);
-
-        for bottom_facet in &mut product[self.rank()-1] {
-            bottom_facet.sups = (0..top_vertex_count).collect();
-        }
-        for top_vertex in &mut product[self.rank()-0] {
-            top_vertex.subs = (0..bottom_facet_count).collect();
-        }
-
-        product
     }
 
     /// Builds a [ditope](https://polytope.miraheze.org/wiki/Ditope) of a given
@@ -944,6 +937,13 @@ impl Polytope for Abstract {
 
             ranks.insert(0, ElementList::min(2));
         }
+    }
+
+    /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)
+    /// based on a given polytope. Use [`Self::antiprism`] instead, as this
+    /// method can never fail.
+    fn try_antiprism(&self) -> Result<Self, Self::DualError> {
+        Ok(self.antiprism())
     }
 
     /// Splits compound faces into their components.
@@ -1108,7 +1108,7 @@ mod tests {
             .into_iter()
             .enumerate()
             .map(|(k, c)| c << k)
-            .chain(std::iter::once(1))
+            .chain(iter::once(1))
     }
 
     /// Checks hypercubes.
