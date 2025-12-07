@@ -121,7 +121,7 @@ pub trait FromFile: Sized {
             },
 
             // Reads the file as a GGB file.
-            "ggb" => Ok(Self::from_ggb(fs::File::open(fp)?)?),
+            "ggb" => Ok(Self::from_ggb(File::open(fp)?)?),
 
             // Could not recognize the file extension.
             ext => Err(FileError::InvalidExtension(ext)),

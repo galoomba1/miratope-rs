@@ -267,7 +267,7 @@ type IterMutFn = for<'r> fn(&'r mut ElementList) -> slice::IterMut<'r, Element>;
 
 /// The signature of the function that turns an `ElementList` into an owned
 /// iterator.
-type IntoIterFn = fn(ElementList) -> std::vec::IntoIter<Element>;
+type IntoIterFn = fn(ElementList) -> vec::IntoIter<Element>;
 
 /// The signature of the function that returns the length of an `ElementList`.
 type LenFn = for<'r> fn(&'r ElementList) -> usize;
@@ -602,7 +602,7 @@ impl AbstractBuilder {
     /// By calling this method, you're asserting that whatever you've built is
     /// a valid [`Abstract`] polytope.
     pub unsafe fn build(self) -> Abstract {
-        Abstract::from_ranks(self.0)
+        unsafe { Abstract::from_ranks(self.0) }
     }
 }
 

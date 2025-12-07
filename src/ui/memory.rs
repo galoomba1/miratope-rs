@@ -2,9 +2,9 @@
 
 use std::cmp::*;
 
-use bevy::prelude::{Query, Res, ResMut};
-use bevy_egui::{egui, EguiContext};
-
+use bevy::prelude::{Query, ResMut, Resource, Result};
+use bevy_egui::{egui};
+use bevy_egui::egui::Context;
 use crate::{
     ui::config::SlotsPerPage,
     Concrete
@@ -13,7 +13,7 @@ use crate::{
 use super::main_window::PolyName;
 
 /// Represents the memory slots to store polytopes.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Memory {
     pub slots: Vec<Option<(Concrete, Option<String>)>>,
     pub start_page: usize,
@@ -55,9 +55,9 @@ impl Memory {
         query: &mut Query<'_, '_, &mut Concrete>,
         poly_name: &mut ResMut<'_, PolyName>,
         slots_per_page: &mut ResMut<'_, SlotsPerPage>,
-        egui_ctx: &Res<'_, EguiContext>,
+        context: &mut Context,
         open: &mut bool
-    ) {
+    ) -> Result {
         let spp = slots_per_page.0;
         self.start_page = if self.len() < spp {0} else {min(self.start_page, self.len()-spp)};
         self.end_page = min(self.start_page + spp, self.len());
@@ -65,8 +65,8 @@ impl Memory {
             .open(open)
             .scroll(true)
             .default_width(260.0)
-            .show(egui_ctx.ctx(), |ui| {
-            egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(context, |ui| {
+            egui::containers::ScrollArea::vertical().show(ui, |ui| {
                 
                 ui.horizontal(|ui| {
                     if ui.button("Clear memory").clicked() {
@@ -82,7 +82,7 @@ impl Memory {
                     ui.add(
                         egui::DragValue::new(&mut slots_per_page.0)
                         .speed(0.04)
-                        .clamp_range(1..=std::usize::MAX)
+                        .range(1..=usize::MAX)
                     );
                 });
     
@@ -164,7 +164,7 @@ impl Memory {
                         egui::DragValue::new(&mut self.start_page)
                         .suffix(format!(" - {}", self.end_page as isize - 1))
                         .speed(0.4)
-                        .clamp_range(0..=if len < spp {0} else {len-spp})
+                        .range(0..=if len < spp {0} else {len-spp})
                     );
                     ui.label(format!(
                         "/  {}",
@@ -173,5 +173,6 @@ impl Memory {
                 });
             });
         });
+        Ok(())
     }
 }

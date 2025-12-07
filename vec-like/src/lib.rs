@@ -137,12 +137,12 @@ where
     }
 
     /// Returns an iterator over the slice.
-    fn iter(&self) -> std::slice::Iter<<Self as VecLike>::VecItem> {
+    fn iter(&self) -> std::slice::Iter<'_, <Self as VecLike>::VecItem> {
         self.as_inner().iter()
     }
 
     /// Returns a mutable iterator over the slice.
-    fn iter_mut(&mut self) -> std::slice::IterMut<<Self as VecLike>::VecItem> {
+    fn iter_mut(&mut self) -> std::slice::IterMut<'_, <Self as VecLike>::VecItem> {
         self.as_inner_mut().iter_mut()
     }
 

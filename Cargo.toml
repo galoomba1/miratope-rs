@@ -1,11 +1,12 @@
 [workspace]
 members = ["miratope-core", "vec-like"]
+resolver = "2"
 
 [package]
 name = "miratope"
 description = "A polytope renderer and builder."
 license = "MIT"
-version = "0.4.16"
+version = "0.5.0"
 repository = "https://github.com/galoomba1/miratope-rs"
 keywords = ["polytope", "dimension", "geometry"]
 authors = [
@@ -13,47 +14,39 @@ authors = [
     "Grayson Burton <ocornoc@protonmail.com>",
     "Roman Salinas <ultraroman01@gmail.com>"
 ]
-edition = "2018"
+edition = "2024"
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [dependencies]
-miratope-core = { path = "miratope-core" }
+miratope-core = { path = "miratope-core", features = ["bevy"] }
 vec-like = { path = "vec-like" }
-approx = "0.5"
-directories = "4.0"
-lyon = "0.17"
-ordered-float = "2.4"
-rfd = "0.5"
-ron = "0.6"
+approx = "0.5.1"
+directories = "6.0"
+lyon = "1.0"
+rfd = "0.15.4"
+ron = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
-webbrowser = "0.5"
+bevy_egui = "0.37.1"
+bevy_render = "0.17.2"
 
-# Use latest version of Bevy (might cause breakage!)
 [dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
-branch = "main"
+version = "0.17.2"
 default-features = false
 features = [
+    "tonemapping_luts",
+    "bevy_log",
     "bevy_gltf",
     "bevy_winit",
-    "bevy_wgpu",
-    "render",
-    "bevy_dynamic_plugin",
-    "hdr",
-    "x11"
+    "bevy_picking",
+    "bevy_render",
 ]
 
-# Bevy egui integration with this latest version.
-[dependencies.bevy_egui]
-git = "https://github.com/vihdzp/bevy_egui/"
-branch = "bevy-main"
 
-[dependencies.egui]
-version = "0.14.2"
-default-features = false
-features = ["multi_threaded"]
 
-[patch.crates-io]
-winit = { git = "https://github.com/vihdzp/winit" }
+
+
 
 [profile.release]
 lto = "thin"
