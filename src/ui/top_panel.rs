@@ -1036,17 +1036,10 @@ fn show_views(
 
             let mut new_direction = section_direction.0[i].0.clone();
 
-            ui.horizontal(|ui| {
-
-                ui.add(UnitPointWidget::new(
-                    &mut new_direction,
-                    "Slice direction",
-                ));
-
-                if ui.button("Diagonal").clicked() {
-                    new_direction = Point::from_element(new_direction.len(), 1.0/(new_direction.len() as f64).sqrt());
-                }
-            });
+            ui.add(UnitPointWidget::new(
+                &mut new_direction,
+                "Slice direction",
+            ));
             
             // Updates the slicing direction.
             #[allow(clippy::float_cmp)]
