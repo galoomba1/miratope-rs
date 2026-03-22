@@ -1,5 +1,7 @@
 //! The systems that update the main window.
 
+use std::path::PathBuf;
+
 use super::config::{MeshColor, WfColor};
 use super::right_panel::ElementTypesRes;
 use super::{camera::ProjectionType, top_panel::SectionState};
@@ -9,7 +11,7 @@ use crate::Concrete;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContextSettings;
-use miratope_core::abs::Ranked;
+use miratope_core::{abs::Ranked, file::FromFile};
 
 /// The plugin in charge of the Miratope main window, and of drawing the
 /// polytope onto it.
@@ -21,6 +23,7 @@ impl Plugin for MainWindowPlugin {
             .add_systems(Update, update_scale_factor)
             .add_systems(PostUpdate, update_changed_polytopes)
             .add_systems(PostUpdate, update_changed_color)
+            .add_systems(Update, update_drag_and_drop)
             .init_resource::<PolyName>();
     }
 }
@@ -30,7 +33,13 @@ pub struct PolyName(pub String);
 
 impl Default for PolyName {
     fn default() -> PolyName {
-        PolyName("default".to_string())
+        let mut args = std::env::args();
+        args.next();
+        if let Some(path) = args.next() {
+            PolyName(PathBuf::from(path).file_stem().unwrap().to_string_lossy().into_owned())
+        } else {
+            PolyName("default".to_string())
+        }
     }
 }
 
@@ -68,6 +77,32 @@ pub fn update_visible(
 pub fn update_scale_factor(mut egui_settings: Query<'_, '_, &mut EguiContextSettings>, window_query: Query<'_, '_, &Window, With<PrimaryWindow>>) {
     if let Ok(window) = window_query.single() {
         egui_settings.single_mut().unwrap().scale_factor = 1.0 / window.scale_factor();
+    }
+}
+
+/// Checks for dragging and dropping files and updates the polytope if so.
+pub fn update_drag_and_drop(
+    mut events: MessageReader<'_, '_, FileDragAndDrop>,
+    mut query: Query<'_, '_, &mut Concrete>,
+    mut name: ResMut<'_, PolyName>,
+) {
+    for state in events.read() {
+        match state {
+            FileDragAndDrop::DroppedFile { window: _, path_buf } => {
+                if let Some(mut p) = query.iter_mut().next() {
+                    match Concrete::from_path(&path_buf) {
+                        Ok(q) => {
+                            *p = q;
+                            name.0 = path_buf.file_stem().unwrap().to_string_lossy().into_owned();
+                            return; // Only load the first valid file.
+                        }
+                        Err(err) => eprintln!("File open failed: {}", err),
+                    }
+                }
+            }
+
+            _default => {}
+        }
     }
 }
 
