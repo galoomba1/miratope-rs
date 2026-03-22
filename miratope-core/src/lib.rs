@@ -92,7 +92,7 @@ pub trait Polytope:
     /// The user must certify that any modification done to the polytope
     /// ultimately results in a valid [`Abstract`].
     unsafe fn ranks_mut(&mut self) -> &mut Ranks {
-        self.abs_mut().ranks_mut()
+        unsafe { self.abs_mut().ranks_mut() }
     }
 
     /// Sorts the subelements and superelements of the entire polytope. This is

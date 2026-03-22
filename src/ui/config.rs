@@ -8,9 +8,10 @@ use std::{
 };
 
 use bevy::{app::AppExit, prelude::*};
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{egui, EguiContexts};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use crate::ui::CurrentVisuals;
 
 /// The default path in which we look for the Miratope library.
 const DEFAULT_PATH: &str = "./lib";
@@ -40,13 +41,15 @@ impl Plugin for ConfigPlugin {
             .insert_resource(config.background_color.clear_color())
             .insert_resource(config.mesh_color)
             .insert_resource(config.wf_color)
-            .insert_resource(config.light_mode.visuals())
-            .add_system(update_visuals.system())
-            .add_system_to_stage(CoreStage::Last, save_config.system());
+            .insert_resource(CurrentVisuals(config.light_mode.visuals()))
+            .insert_resource(config.slots_per_page)
+            .add_systems(Update, update_visuals)
+            .add_systems(Last, save_config);
     }
 }
 
 /// Stores the file path to the configuration file in Miratope.
+#[derive(Resource)]
 pub struct ConfigPath(PathBuf);
 
 impl AsRef<Path> for ConfigPath {
@@ -56,7 +59,7 @@ impl AsRef<Path> for ConfigPath {
 }
 
 /// The path to the Miratope library.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Resource)]
 pub struct LibPath(String);
 
 impl Default for LibPath {
@@ -83,33 +86,33 @@ pub struct BgColor(f32, f32, f32);
 impl BgColor {
     /// Makes a new `BgColor` from the given `ClearColor`.
     pub fn new(clear_color: &ClearColor) -> Self {
-        let color = clear_color.0;
-        Self(color.r(), color.g(), color.b())
+        let color:Srgba = (**clear_color).into();
+        Self(color.red, color.green, color.blue)
     }
 
     /// Makes a new `ClearColor` from the given `BgColor`.
     pub fn clear_color(&self) -> ClearColor {
-        ClearColor(Color::rgb(self.0, self.1, self.2))
+        ClearColor(Color::srgb(self.0, self.1, self.2))
     }
 }
 
 /// The mesh color of the polytope in sRGB.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Resource)]
 pub struct MeshColor(pub Color);
 
 impl Default for MeshColor {
     fn default() -> MeshColor {
-        MeshColor(Color::rgb_u8(255, 255, 255))
+        MeshColor(Color::srgb_u8(255, 255, 255))
     }
 }
 
 /// The wireframe color of the polytope in sRGB.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Resource)]
 pub struct WfColor(pub Color);
 
 impl Default for WfColor {
     fn default() -> WfColor {
-        WfColor(Color::rgb_u8(150, 150, 150))
+        WfColor(Color::srgb_u8(150, 150, 150))
     }
 }
 
@@ -128,12 +131,24 @@ impl LightMode {
     }
 }
 
+/// Number of memory slots per page.
+#[derive(Clone, Serialize, Deserialize, Resource)]
+pub struct SlotsPerPage(pub usize);
+
+impl Default for SlotsPerPage {
+    /// Returns the corresponding egui visuals.
+    fn default() -> SlotsPerPage {
+        SlotsPerPage(16)
+    }
+}
+
 /// Updates the application appearance whenever the visuals are changed. This
 /// occurs at application startup and whenever the user toggles light/dark mode.
-fn update_visuals(egui_ctx: Res<'_, EguiContext>, visuals: Res<'_, egui::Visuals>) {
+fn update_visuals(mut egui_ctx: EguiContexts<'_, '_>, visuals: Res<'_, CurrentVisuals>) -> Result {
     if visuals.is_changed() {
-        egui_ctx.ctx().set_visuals(visuals.clone());
+        egui_ctx.ctx_mut()?.set_visuals(visuals.0.clone());
     }
+    Ok(())
 }
 
 /// A monolithic struct that contains all of the configuration data for
@@ -152,6 +167,9 @@ pub struct Config {
 
     /// Whether light mode is enabled.
     pub light_mode: LightMode,
+
+    /// Number of memory slots per page.
+    pub slots_per_page: SlotsPerPage,
 }
 
 impl Config {
@@ -218,21 +236,23 @@ impl Config {
 
 /// Saves the configuration at application exit.
 fn save_config(
-    mut exit: EventReader<'_, '_, AppExit>,
+    mut exit: MessageReader<'_, '_, AppExit>,
     config_path: Res<'_, ConfigPath>,
 
     background_color: Res<'_, ClearColor>,
     mesh_color: Res<'_, MeshColor>,
     wf_color: Res<'_, WfColor>,
-    visuals: Res<'_, egui::Visuals>,
+    visuals: Res<'_, CurrentVisuals>,
+    slots_per_page: Res<'_, SlotsPerPage>,
 ) {
     // If the application is being exited:
-    if exit.iter().next().is_some() {
+    if exit.read().next().is_some() {
         let config = Config {
             background_color: BgColor::new(background_color.as_ref()),
             mesh_color: mesh_color.clone(),
             wf_color: wf_color.clone(),
-            light_mode: LightMode(!visuals.dark_mode),
+            light_mode: LightMode(!visuals.0.dark_mode),
+            slots_per_page: slots_per_page.clone(),
         };
 
         config.save(&config_path.0);

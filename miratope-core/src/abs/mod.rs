@@ -577,6 +577,60 @@ impl Polytope for Abstract {
         }
     }
 
+    /// Builds a [duopyramid](https://polytope.miraheze.org/wiki/Pyramid_product)
+    /// from two polytopes.
+    ///
+    /// The vertices of the result will be those corresponding to the vertices
+    /// of `self` in the same order, following those corresponding to `other` in
+    /// the same order.
+    fn duopyramid(&self, other: &Self) -> Self {
+        product::duopyramid(self, other)
+    }
+
+    /// Builds a [duoprism](https://polytope.miraheze.org/wiki/Prism_product)
+    /// from two polytopes.
+    fn duoprism(&self, other: &Self) -> Self {
+        product::duoprism(self, other)
+    }
+
+    /// Builds a [duotegum](https://polytope.miraheze.org/wiki/Tegum_product)
+    /// from two polytopes.
+    ///
+    /// The vertices of the result will be those corresponding to the vertices
+    /// of `self` in the same order, following those corresponding to `other` in
+    /// the same order.
+    fn duotegum(&self, other: &Self) -> Self {
+        product::duotegum(self, other)
+    }
+
+    /// Builds a [duocomb](https://polytope.miraheze.org/wiki/Honeycomb_product)
+    /// from two polytopes.
+    fn duocomb(&self, other: &Self) -> Self {
+        product::duocomb(self, other)
+    }
+
+    /// Builds a [star product](https://en.wikipedia.org/wiki/Star_product)
+    /// of two polytopes.
+    fn star_product(&self, other: &Self) -> Self {
+        let mut product = self.clone();
+        product.ranks.pop();
+        for r in 1..=other.rank() {
+            product.ranks.push(other[r].clone());
+        }
+
+        let bottom_facet_count = self.el_count(self.rank()-1);
+        let top_vertex_count = other.el_count(1);
+
+        for bottom_facet in &mut product[self.rank()-1] {
+            bottom_facet.sups = (0..top_vertex_count).collect();
+        }
+        for top_vertex in &mut product[self.rank()-0] {
+            top_vertex.subs = (0..bottom_facet_count).collect();
+        }
+
+        product
+    }
+
     /// Builds an [orthoplex](https://polytope.miraheze.org/wiki/Orthoplex) with
     /// a given rank.
     fn orthoplex(rank: usize) -> Self {
@@ -585,29 +639,6 @@ impl Polytope for Abstract {
         } else {
             Self::multitegum(iter::repeat(&Self::dyad()).take(rank - 1))
         }
-    }
-
-    fn vertex_map(&self) -> ElementMap<usize> {
-        // Maps every element of the polytope to one of its vertices.
-        let mut vertex_map = ElementMap::new();
-        vertex_map.push(Vec::new());
-
-        // Vertices map to themselves.
-        if self.rank() != 0 {
-            vertex_map.push((0..self.vertex_count()).collect());
-        }
-
-        // Every other element maps to the vertex of any subelement.
-        for (r, elements) in self.ranks.iter().enumerate().skip(2) {
-            vertex_map.push(
-                elements
-                    .iter()
-                    .map(|el| vertex_map[(r - 1, el.subs[0])])
-                    .collect(),
-            );
-        }
-
-        vertex_map
     }
 
     /// Converts a polytope into its dual.
@@ -620,112 +651,6 @@ impl Polytope for Abstract {
     fn try_dual_mut(&mut self) -> Result<(), Self::DualError> {
         self.dual_mut();
         Ok(())
-    }
-
-    /// Builds the [Petrial](https://polytope.miraheze.org/wiki/Petrial) of a
-    /// polyhedron in place.
-    fn petrial_mut(&mut self) -> bool {
-        // Petrials only really make sense for polyhedra.
-        if self.rank() != 4 {
-            return false;
-        }
-
-        // Consider a flag in a polytope. It has an associated edge. It turns
-        // out that if we repeatedly apply a vertex-change, an edge-change, and
-        // a face-change, we get the edges that form the Petrial face.
-        //
-        // We go through all flags in the polytope. As we build one Petrial
-        // face, we mark any other flag that gives the same face as "traversed".
-        // Once we've traversed all flags, we got our Petrial's faces.
-        let mut traversed_flags = BTreeSet::new();
-        let mut faces = SubelementList::new();
-
-        self.element_sort();
-        for mut flag in self.flags() {
-            // If we've found the face associated to this flag before, we skip.
-            if !traversed_flags.insert(flag.clone()) {
-                continue;
-            }
-
-            let mut face = BTreeSet::new();
-            let mut edge = flag[2];
-            let mut loop_continue = true;
-
-            // We apply our flag changes and mark our flags until we reach the
-            // original edge. We then intentionally overshoot and do it one more
-            // time.
-            //
-            // TODO: this loop is awkward, rewrite.
-            while loop_continue {
-                loop_continue = face.insert(edge);
-
-                flag.change_mut(self, 1);
-                traversed_flags.insert(flag.change(self, 3));
-                flag.change_mut(self, 2);
-                flag.change_mut(self, 3);
-                traversed_flags.insert(flag.clone());
-
-                edge = flag[2];
-            }
-
-            // If the edge we found after we returned to the original edge was
-            // not already in the face, this means that the Petrial loop
-            // self-intersects, and hence the Petrial is not a valid polytope.
-            if !face.contains(&edge) {
-                return false;
-            }
-
-            faces.push(face.into_iter().collect());
-        }
-
-        // Safety: TODO we need to define the safety guarantees of this function.
-        let ranks = unsafe { self.ranks_mut() };
-
-        // Removes the faces and maximal polytope from self.
-        ranks.pop();
-        ranks.pop();
-
-        // Pushes the new faces and a new maximal element.
-        for el in &mut ranks[2] {
-            el.sups.clear();
-        }
-
-        let face_count = faces.len();
-        let mut new_faces = ElementList::with_capacity(face_count);
-        for (idx, face) in faces.into_iter().enumerate() {
-            for &sub in &face {
-                ranks[(2, sub)].sups.push(idx);
-            }
-
-            new_faces.push(Element {
-                sups: vec![0].into(),
-                subs: face,
-            });
-        }
-
-        ranks.push(new_faces);
-        ranks.push(ElementList::max(face_count));
-
-        // Checks for dyadicity, since that sometimes fails.
-        ranks.ranks().is_dyadic().is_ok()
-
-        // TODO MAKE THIS SOUND instead of just returning whether it failed or not!
-    }
-
-    fn petrie_polygon_with(&mut self, flag: Flag) -> Option<Self> {
-        Some(Self::polygon(self.petrie_polygon_vertices(flag)?.len()))
-    }
-
-    /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)
-    /// based on a given polytope. Use [`Self::antiprism`] instead, as this
-    /// method can never fail.
-    fn try_antiprism(&self) -> Result<Self, Self::DualError> {
-        Ok(self.antiprism())
-    }
-
-    /// Returns the flag omnitruncate of a polytope.
-    fn omnitruncate(&self) -> Self {
-        self.omnitruncate_and_flags().0
     }
 
     /// "Appends" a polytope into another, creating a compound polytope.
@@ -773,6 +698,48 @@ impl Polytope for Abstract {
         *self.ranks.max_mut() = Element::max(self.facet_count());
     }
 
+    fn vertex_map(&self) -> ElementMap<usize> {
+        // Maps every element of the polytope to one of its vertices.
+        let mut vertex_map = ElementMap::new();
+        vertex_map.push(Vec::new());
+
+        // Vertices map to themselves.
+        if self.rank() != 0 {
+            vertex_map.push((0..self.vertex_count()).collect());
+        }
+
+        // Every other element maps to the vertex of any subelement.
+        for (r, elements) in self.ranks.iter().enumerate().skip(2) {
+            vertex_map.push(
+                elements
+                    .iter()
+                    .map(|el| vertex_map[(r - 1, el.subs[0])])
+                    .collect(),
+            );
+        }
+
+        vertex_map
+    }
+    
+    /// Gets the element with a given rank and index as a polytope, if it exists.
+    fn element(&self, rank: usize, idx: usize) -> Option<Self> {
+        Some(ElementHash::new(self, rank, idx)?.to_polytope(self))
+    }
+
+    /// Gets the element figure with a given rank and index as a polytope.
+    fn element_fig(&self, rank: usize, idx: usize) -> Result<Option<Self>, Self::DualError> {
+        if rank <= self.rank() {
+            // todo: this is quite inefficient for a small element figure since
+            // we take the dual of the entire thing.
+            if let Some(mut element_fig) = self.try_dual()?.element(self.rank() - rank, idx) {
+                element_fig.try_dual_mut()?;
+                return Ok(Some(element_fig));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Makes a polytope strongly connected. Splits compounds into their components.
     fn defiss(&self) -> Vec<Abstract> {
         if self.rank() < 1 {
@@ -793,7 +760,7 @@ impl Polytope for Abstract {
             for change in 1..self.rank() {
                 let changed_flag = flag.change(self, change);
                 let changed_idx = flags_map_back.get(&changed_flag).unwrap();
-                
+
                 for rank in 0..self.rank() {
                     if rank != change {
                         partitions[rank].union(idx, *changed_idx);
@@ -859,7 +826,7 @@ impl Polytope for Abstract {
 
         output
     }
-    
+
     /// Splits a polytope into components without making them strongly connected.
     fn split(&self) -> Vec<Abstract> {
         // Compounds don't exist below rank 2.
@@ -1006,77 +973,103 @@ impl Polytope for Abstract {
         output
     }
 
-    /// Gets the element with a given rank and index as a polytope, if it exists.
-    fn element(&self, rank: usize, idx: usize) -> Option<Self> {
-        Some(ElementHash::new(self, rank, idx)?.to_polytope(self))
-    }
+    /// Builds the [Petrial](https://polytope.miraheze.org/wiki/Petrial) of a
+    /// polyhedron in place.
+    fn petrial_mut(&mut self) -> bool {
+        // Petrials only really make sense for polyhedra.
+        if self.rank() != 4 {
+            return false;
+        }
 
-    /// Gets the element figure with a given rank and index as a polytope.
-    fn element_fig(&self, rank: usize, idx: usize) -> Result<Option<Self>, Self::DualError> {
-        if rank <= self.rank() {
-            // todo: this is quite inefficient for a small element figure since
-            // we take the dual of the entire thing.
-            if let Some(mut element_fig) = self.try_dual()?.element(self.rank() - rank, idx) {
-                element_fig.try_dual_mut()?;
-                return Ok(Some(element_fig));
+        // Consider a flag in a polytope. It has an associated edge. It turns
+        // out that if we repeatedly apply a vertex-change, an edge-change, and
+        // a face-change, we get the edges that form the Petrial face.
+        //
+        // We go through all flags in the polytope. As we build one Petrial
+        // face, we mark any other flag that gives the same face as "traversed".
+        // Once we've traversed all flags, we got our Petrial's faces.
+        let mut traversed_flags = BTreeSet::new();
+        let mut faces = SubelementList::new();
+
+        self.element_sort();
+        for mut flag in self.flags() {
+            // If we've found the face associated to this flag before, we skip.
+            if !traversed_flags.insert(flag.clone()) {
+                continue;
             }
+
+            let mut face = BTreeSet::new();
+            let mut edge = flag[2];
+            let mut loop_continue = true;
+
+            // We apply our flag changes and mark our flags until we reach the
+            // original edge. We then intentionally overshoot and do it one more
+            // time.
+            //
+            // TODO: this loop is awkward, rewrite.
+            while loop_continue {
+                loop_continue = face.insert(edge);
+
+                flag.change_mut(self, 1);
+                traversed_flags.insert(flag.change(self, 3));
+                flag.change_mut(self, 2);
+                flag.change_mut(self, 3);
+                traversed_flags.insert(flag.clone());
+
+                edge = flag[2];
+            }
+
+            // If the edge we found after we returned to the original edge was
+            // not already in the face, this means that the Petrial loop
+            // self-intersects, and hence the Petrial is not a valid polytope.
+            if !face.contains(&edge) {
+                return false;
+            }
+
+            faces.push(face.into_iter().collect());
         }
 
-        Ok(None)
-    }
+        // Safety: TODO we need to define the safety guarantees of this function.
+        let ranks = unsafe { self.ranks_mut() };
 
-    /// Builds a [duopyramid](https://polytope.miraheze.org/wiki/Pyramid_product)
-    /// from two polytopes.
-    ///
-    /// The vertices of the result will be those corresponding to the vertices
-    /// of `self` in the same order, following those corresponding to `other` in
-    /// the same order.
-    fn duopyramid(&self, other: &Self) -> Self {
-        product::duopyramid(self, other)
-    }
+        // Removes the faces and maximal polytope from self.
+        ranks.pop();
+        ranks.pop();
 
-    /// Builds a [duoprism](https://polytope.miraheze.org/wiki/Prism_product)
-    /// from two polytopes.
-    fn duoprism(&self, other: &Self) -> Self {
-        product::duoprism(self, other)
-    }
-
-    /// Builds a [duotegum](https://polytope.miraheze.org/wiki/Tegum_product)
-    /// from two polytopes.
-    ///
-    /// The vertices of the result will be those corresponding to the vertices
-    /// of `self` in the same order, following those corresponding to `other` in
-    /// the same order.
-    fn duotegum(&self, other: &Self) -> Self {
-        product::duotegum(self, other)
-    }
-
-    /// Builds a [duocomb](https://polytope.miraheze.org/wiki/Honeycomb_product)
-    /// from two polytopes.
-    fn duocomb(&self, other: &Self) -> Self {
-        product::duocomb(self, other)
-    }
-
-    /// Builds a [star product](https://en.wikipedia.org/wiki/Star_product)
-    /// of two polytopes.
-    fn star_product(&self, other: &Self) -> Self {
-        let mut product = self.clone();
-        product.ranks.pop();
-        for r in 1..=other.rank() {
-            product.ranks.push(other[r].clone());
+        // Pushes the new faces and a new maximal element.
+        for el in &mut ranks[2] {
+            el.sups.clear();
         }
 
-        let bottom_facet_count = self.el_count(self.rank()-1);
-        let top_vertex_count = other.el_count(1);
+        let face_count = faces.len();
+        let mut new_faces = ElementList::with_capacity(face_count);
+        for (idx, face) in faces.into_iter().enumerate() {
+            for &sub in &face {
+                ranks[(2, sub)].sups.push(idx);
+            }
 
-        for bottom_facet in &mut product[self.rank()-1] {
-            bottom_facet.sups = (0..top_vertex_count).collect();
-        }
-        for top_vertex in &mut product[self.rank()-0] {
-            top_vertex.subs = (0..bottom_facet_count).collect();
+            new_faces.push(Element {
+                sups: vec![0].into(),
+                subs: face,
+            });
         }
 
-        product
+        ranks.push(new_faces);
+        ranks.push(ElementList::max(face_count));
+
+        // Checks for dyadicity, since that sometimes fails.
+        ranks.ranks().is_dyadic().is_ok()
+
+        // TODO MAKE THIS SOUND instead of just returning whether it failed or not!
+    }
+
+    fn petrie_polygon_with(&mut self, flag: Flag) -> Option<Self> {
+        Some(Self::polygon(self.petrie_polygon_vertices(flag)?.len()))
+    }
+
+    /// Returns the flag omnitruncate of a polytope.
+    fn omnitruncate(&self) -> Self {
+        self.omnitruncate_and_flags().0
     }
 
     /// Builds a [ditope](https://polytope.miraheze.org/wiki/Ditope) of a given
@@ -1114,6 +1107,13 @@ impl Polytope for Abstract {
 
             ranks.insert(0, ElementList::min(2));
         }
+    }
+
+    /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)
+    /// based on a given polytope. Use [`Self::antiprism`] instead, as this
+    /// method can never fail.
+    fn try_antiprism(&self) -> Result<Self, Self::DualError> {
+        Ok(self.antiprism())
     }
 
     /// Splits compound faces into their components.
@@ -1297,7 +1297,7 @@ mod tests {
             .into_iter()
             .enumerate()
             .map(|(k, c)| c << k)
-            .chain(std::iter::once(1))
+            .chain(iter::once(1))
     }
 
     /// Checks hypercubes.

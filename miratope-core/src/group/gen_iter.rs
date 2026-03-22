@@ -109,7 +109,7 @@ impl<T: GroupItem + Clone> GenIter<T> {
         }
 
         let el;
-        let gen = &self.gens[self.gen_idx];
+        let generator = &self.gens[self.gen_idx];
 
         // Advances the indices.
         self.gen_idx += 1;
@@ -121,15 +121,15 @@ impl<T: GroupItem + Clone> GenIter<T> {
             el = Cow::Borrowed(self.queue.front().unwrap());
         }
 
-        Some((el, gen))
+        Some((el, generator))
     }
 
     /// Multiplies the current element times the current generator, determines
     /// if it is a new element. Advances the iterator.
     fn try_next(&mut self) -> GroupNext<T> {
         // If there's a next element and generator.
-        if let Some((el, gen)) = self.next_el_gen() {
-            let new_el = T::mul(el.as_ref(), gen);
+        if let Some((el, generator)) = self.next_el_gen() {
+            let new_el = T::mul(el.as_ref(), generator);
 
             // If the group element is new.
             if self.insert(new_el.clone()) {
@@ -174,8 +174,8 @@ impl<T: GroupItem + Clone> Iterator for GenIter<T> {
 }
 
 impl<T: GroupItem + Clone> From<GenIter<T>> for Group<GenIter<T>> {
-    fn from(gen: GenIter<T>) -> Self {
+    fn from(generator: GenIter<T>) -> Self {
         // The elements of a GenIter always form a group (that's the point!)
-        unsafe { Self::new(gen.dim, gen) }
+        unsafe { Self::new(generator.dim, generator) }
     }
 }

@@ -14,7 +14,7 @@ use crate::{geometry::Matrix, group::GenIter};
 
 use nalgebra::dmatrix;
 
-use crate::geometry::VectorSlice;
+use crate::geometry::VectorView;
 
 use self::cd::{Cd, CdResult};
 
@@ -175,7 +175,7 @@ impl Cox<f64> {
         let dim = normals.nrows();
 
         // Builds a reflection matrix from a vector.
-        let refl_mat = |n: VectorSlice<'_, f64>| {
+        let refl_mat = |n: VectorView<'_, f64>| {
             let nn = n.norm_squared();
             let mut mat = Matrix::identity(dim, dim);
 

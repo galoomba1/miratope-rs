@@ -94,7 +94,7 @@ where
         dim: T::Dim,
         f: F,
     ) -> Group<Map<I, F>> {
-        Group::new(dim, self.iter.map(f))
+        unsafe { Group::new(dim, self.iter.map(f)) }
     }
 
     /// Builds a subgroup by taking all elements satisfying a certain predicate.
@@ -102,7 +102,7 @@ where
     /// # Safety
     /// The user must verify that the specified elements indeed form a group.
     pub unsafe fn sub<F: FnMut(&I::Item) -> bool>(self, f: F) -> Group<Filter<I, F>> {
-        Group::new(self.dim, self.iter.filter(f))
+        unsafe { Group::new(self.dim, self.iter.filter(f)) }
     }
 
     /// Gets all elements of `self` and stores them in a cache, so that they can
@@ -115,7 +115,7 @@ where
     /// Returns the permutation group associated to `self`.
     pub fn permutations<D: nalgebra::Dim>(self) -> Group<PermutationIter<I::Item, D>>
     where
-        DefaultAllocator: Allocator<usize, D> + Allocator<I::Item, D>,
+        DefaultAllocator: Allocator<D> + Allocator<D>,
         I::Item: Clone,
     {
         let vec: Vec<_> = self.collect();
@@ -133,9 +133,9 @@ impl<T: GroupItem> Group<Once<T>> {
 
 impl<T: GroupItem + Clone> Group<Cyclic<T>> {
     /// Builds a cyclic group from a single generator.
-    pub fn cyclic_gen(dim: T::Dim, gen: T) -> Self {
+    pub fn cyclic_gen(dim: T::Dim, generator: T) -> Self {
         // Safety: this construction always yields a group.
-        unsafe { Self::new(dim, Cyclic::new(gen)) }
+        unsafe { Self::new(dim, Cyclic::new(generator)) }
     }
 }
 
@@ -200,8 +200,8 @@ impl<T: GroupItem> Group<array::IntoIter<T, 2>> {
     ///
     /// # Safety
     /// The generator must be an involution.
-    pub unsafe fn two(dim: T::Dim, gen: T) -> Self {
-        Self::new(dim, IntoIterator::into_iter([T::id(dim), gen]))
+    pub unsafe fn two(dim: T::Dim, generator: T) -> Self {
+        unsafe { Self::new(dim, IntoIterator::into_iter([T::id(dim), generator])) }
     }
 }
 
@@ -292,12 +292,13 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
         self,
         g: Group<J>,
     ) -> Group<MatrixProductIter<T>> {
-        Group::new(
-            self.dim,
-            (self.collect::<Vec<_>>(), g.collect::<Vec<_>>())
-                .into_pairs()
-                .map(|a, b| a * b),
-        )
+        unsafe {
+            Group::new(
+                self.dim,
+                (self.collect::<Vec<_>>(), g.collect::<Vec<_>>())
+                    .into_pairs()
+                    .map(|a, b| a * b),
+        )}
     }
 
     /// Returns the specified group with central inversion appended to all
@@ -307,7 +308,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
     /// The group must not contain central inversion already.
     pub unsafe fn with_central_inv(self) -> Group<impl Iterator<Item = Matrix<T>>> {
         let dim = self.dim;
-        self.matrix_product(Group::central_inv(dim))
+        unsafe { self.matrix_product(Group::central_inv(dim)) }
     }
 
     /// Returns the specified group with reflection at a given coordinate
@@ -317,7 +318,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
     /// This must form a valid group.
     pub unsafe fn with_reflection_at(self, idx: usize) -> Group<MatrixProductIter<T>> {
         let dim = self.dim;
-        self.matrix_product(Group::reflection_at(dim, idx))
+        unsafe { self.matrix_product(Group::reflection_at(dim, idx)) }
     }
 
     /// Calculates the direct product of two groups. Pairs of matrices are then
@@ -364,23 +365,24 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
         assert_eq!(self.dim, 3);
         assert_eq!(g.dim, 3);
 
-        Group::new(
-            4,
-            (
-                self.map(|mat| (alpha(&mat), mat_to_quat(&mat)))
-                    .collect::<Vec<_>>(),
-                g.map(|mat| (beta(&mat), mat_to_quat(&mat)))
-                    .collect::<Vec<_>>(),
-            )
-                .into_pairs()
-                .filter_map(|(alpha, q), (beta, r)| {
-                    (alpha.eq(beta)).then(|| {
-                        let prod = mat_from_quats(q.quaternion(), r.quaternion());
-                        IntoIterator::into_iter([-&prod, prod])
+        unsafe {
+            Group::new(
+                4,
+                (
+                    self.map(|mat| (alpha(&mat), mat_to_quat(&mat)))
+                        .collect::<Vec<_>>(),
+                    g.map(|mat| (beta(&mat), mat_to_quat(&mat)))
+                        .collect::<Vec<_>>(),
+                )
+                    .into_pairs()
+                    .filter_map(|(alpha, q), (beta, r)| {
+                        alpha.eq(beta).then(|| {
+                            let prod = mat_from_quats(q.quaternion(), r.quaternion());
+                            IntoIterator::into_iter([-&prod, prod])
+                        })
                     })
-                })
                 .flatten(),
-        )
+            )}
     }
 
     /// Builds a swirlchoron group. This is the diploid group construction from
@@ -392,7 +394,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
         self,
         g: Group<J>,
     ) -> Group<impl Iterator<Item = Matrix<T>>> {
-        self.swirl_hom(g, |_| (), |_| ())
+        unsafe { self.swirl_hom(g, |_| (), |_| ()) }
     }
 
     /// Generates a step prism group from a base group and a homomorphism into
@@ -405,7 +407,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
         mut f: F,
     ) -> Group<impl Iterator<Item = Matrix<T>>> {
         let dim = self.dim;
-        self.iso(2 * dim, move |mat| direct_sum(&mat, &f(&mat)))
+        unsafe { self.iso(2 * dim, move |mat| direct_sum(&mat, &f(&mat))) }
     }
 
     /*
@@ -482,7 +484,7 @@ impl<T: Float, I: Iterator<Item = Matrix<T>>> Group<I> {
 /// Converts a matrix into a unit quaternion.
 fn mat_to_quat<T: Float>(mat: &Matrix<T>) -> UnitQuaternion<T> {
     UnitQuaternion::from_rotation_matrix(&Rotation::from_matrix_unchecked(
-        mat.fixed_slice::<3, 3>(0, 0).into(),
+        mat.fixed_view::<3, 3>(0, 0).into(),
     ))
 }
 
@@ -732,7 +734,7 @@ mod tests {
                 let n_usize = n as usize;
 
                 test(
-                    unsafe { Group::step_hom(Group::cyclic(n), move |mat| mat.pow(d).unwrap()) }, //change
+                    unsafe { Group::step_hom(Group::cyclic(n), move |mat| mat.pow(d)) }, //change
                     n_usize,
                     n_usize,
                     "Step prismatic n-d",

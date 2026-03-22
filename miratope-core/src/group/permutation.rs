@@ -8,7 +8,7 @@ use std::{
 };
 
 use nalgebra::{
-    allocator::Allocator, Const, DefaultAllocator, Dim, Dynamic, OVector, UninitVector,
+    allocator::Allocator, Const, DefaultAllocator, Dim, Dyn, OVector, UninitVector,
 };
 
 use super::group_item::{GroupItem, Wrapper};
@@ -18,13 +18,13 @@ use super::group_item::{GroupItem, Wrapper};
 #[derive(Clone, PartialEq, Debug)]
 pub struct Permutation<N: Dim>(OVector<usize, N>)
 where
-    DefaultAllocator: Allocator<usize, N>;
+    DefaultAllocator: Allocator<N>;
 
-impl<N: Dim> Eq for Permutation<N> where DefaultAllocator: Allocator<usize, N> {}
+impl<N: Dim> Eq for Permutation<N> where DefaultAllocator: Allocator<N> {}
 
 impl<N: Dim> PartialOrd for Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.0.partial_cmp(&other.0)
@@ -33,7 +33,7 @@ where
 
 impl<N: Dim> Ord for Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.partial_cmp(&other.0).unwrap()
@@ -44,11 +44,11 @@ where
 pub type SPermutation<const N: usize> = Permutation<Const<N>>;
 
 /// A dynamically sized permutation.
-pub type DPermutation = Permutation<Dynamic>;
+pub type DPermutation = Permutation<Dyn>;
 
 impl<N: Dim> Index<usize> for Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     type Output = usize;
 
@@ -59,7 +59,7 @@ where
 
 impl<N: Dim> Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     /// Builds a permutation from the entries.
     ///
@@ -130,7 +130,7 @@ impl<const N: usize> SPermutation<N> {
     /// The user must certify that all of these values are distinct and less
     /// than the length of the permutation.
     pub unsafe fn from_iterator<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        Self::from_iterator_generic(N, iter)
+        unsafe { Self::from_iterator_generic(N, iter) }
     }
 
     /// Returns the identity permutation.
@@ -147,7 +147,7 @@ impl DPermutation {
     /// The user must certify that all of these values are distinct and less
     /// than the length of the permutation.
     pub unsafe fn from_iterator<I: IntoIterator<Item = usize>>(iter: I, len: usize) -> Self {
-        Self::from_iterator_generic(len, iter)
+        unsafe { Self::from_iterator_generic(len, iter) }
     }
 
     /// Returns the identity permutation.
@@ -159,7 +159,7 @@ impl DPermutation {
 
 impl<'a, 'b, N: Dim> Mul<&'b Permutation<N>> for &'a Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     type Output = Permutation<N>;
 
@@ -171,7 +171,7 @@ where
 
 impl<'a, N: Dim> MulAssign<&'a Permutation<N>> for Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     fn mul_assign(&mut self, rhs: &'a Permutation<N>) {
         // Safety: the composition of two permutations is a permutation.
@@ -183,7 +183,7 @@ where
 
 impl<N: Dim> GroupItem for Permutation<N>
 where
-    DefaultAllocator: Allocator<usize, N>,
+    DefaultAllocator: Allocator<N>,
 {
     type Dim = N;
     type FuzzyOrd = Self;
@@ -217,7 +217,7 @@ where
 /// An iterator over the permutations associated to a group.
 pub struct PermutationIter<T: GroupItem, D: Dim>
 where
-    DefaultAllocator: Allocator<T, D>,
+    DefaultAllocator: Allocator<D>,
 {
     /// The elements of the group, provided for easy iteration.
     vec: Vec<T>,
@@ -237,11 +237,11 @@ where
 pub type SPermutationIter<I, const N: usize> = PermutationIter<I, Const<N>>;
 
 /// A [`PermutationIter`] with a dynamically known size.
-pub type DPermutationIter<I> = PermutationIter<I, Dynamic>;
+pub type DPermutationIter<I> = PermutationIter<I, Dyn>;
 
 impl<T: GroupItem + Clone, D: Dim> PermutationIter<T, D>
 where
-    DefaultAllocator: Allocator<T, D>,
+    DefaultAllocator: Allocator<D>,
 {
     /// Initializes a new iterator over permutations from the elements of a
     /// group.
@@ -264,7 +264,7 @@ where
 
 impl<T: GroupItem + Clone, D: Dim> Iterator for PermutationIter<T, D>
 where
-    DefaultAllocator: Allocator<usize, D> + Allocator<T, D>,
+    DefaultAllocator: Allocator<D> + Allocator<D>,
 {
     type Item = Permutation<D>;
 

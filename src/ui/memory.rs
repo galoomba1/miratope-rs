@@ -1,21 +1,30 @@
 //! Manages the memory tab.
 
-use bevy::prelude::{Query, Res, ResMut};
-use bevy_egui::{egui, EguiContext};
+use std::cmp::*;
 
-use crate::Concrete;
+use bevy::prelude::{Query, ResMut, Resource, Result};
+use bevy_egui::{egui};
+use bevy_egui::egui::Context;
+use crate::{
+    ui::config::SlotsPerPage,
+    Concrete
+};
 
 use super::main_window::PolyName;
 
 /// Represents the memory slots to store polytopes.
-#[derive(Default)]
-pub struct Memory(pub Vec<Option<(Concrete, Option<String>)>>);
+#[derive(Default, Resource)]
+pub struct Memory {
+    pub slots: Vec<Option<(Concrete, Option<String>)>>,
+    pub start_page: usize,
+    pub end_page: usize
+}
 
 impl std::ops::Index<usize> for Memory {
     type Output = Option<(Concrete, Option<String>)>;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+        &self.slots[index]
     }
 }
 
@@ -27,41 +36,61 @@ pub fn slot_label(n: usize) -> String {
 impl Memory {
     /// Returns the length of the memory vector.
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.slots.len()
     }
 
     /// Returns an iterator over the memory slots.
     pub fn iter(&self) -> std::slice::Iter<'_, Option<(Concrete, Option<String>)>> {
-        self.0.iter()
+        self.slots.iter()
     }
 
     /// Appends an element.
     pub fn push(&mut self, a: (Concrete, Option<String>)) {
-        self.0.push(Some(a));
+        self.slots.push(Some(a));
     }
 
     /// Shows the memory menu in a specified Ui.
-    pub fn show(&mut self, query: &mut Query<'_, '_, &mut Concrete>, poly_name: &mut ResMut<'_, PolyName>, egui_ctx: &Res<'_, EguiContext>, open: &mut bool) {
+    pub fn show(
+        &mut self,
+        query: &mut Query<'_, '_, &mut Concrete>,
+        poly_name: &mut ResMut<'_, PolyName>,
+        slots_per_page: &mut ResMut<'_, SlotsPerPage>,
+        context: &mut Context,
+        open: &mut bool
+    ) -> Result {
+        let spp = slots_per_page.0;
+        self.start_page = if self.len() < spp {0} else {min(self.start_page, self.len()-spp)};
+        self.end_page = min(self.start_page + spp, self.len());
         egui::Window::new("Memory")
             .open(open)
             .scroll(true)
             .default_width(260.0)
-            .show(egui_ctx.ctx(), |ui| {
-            egui::containers::ScrollArea::auto_sized().show(ui, |ui| {
+            .show(context, |ui| {
+            egui::containers::ScrollArea::vertical().show(ui, |ui| {
                 
                 ui.horizontal(|ui| {
                     if ui.button("Clear memory").clicked() {
-                        self.0.clear();
+                        self.slots.clear();
                     }
         
                     if ui.button("Add slot").clicked() {
-                        self.0.push(None);
+                        self.slots.push(None);
                     }
+                    
+                    ui.add_space(20.);
+                    ui.label("Slots per page:");
+                    ui.add(
+                        egui::DragValue::new(&mut slots_per_page.0)
+                        .speed(0.04)
+                        .range(1..=usize::MAX)
+                    );
                 });
     
                 ui.separator();
     
-                for (idx, slot) in self.0.iter_mut().enumerate() {
+                for idx in self.start_page..self.end_page {
+                    if idx >= self.len() {continue}
+                    let slot = &mut self.slots[idx];
                     match slot {
                         // Shows an empty slot.
                         None => {
@@ -126,7 +155,24 @@ impl Memory {
                         }
                     }
                 }
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    let len = self.len(); // there's probably a better way to do this but idk rust
+                    ui.add(
+                        egui::DragValue::new(&mut self.start_page)
+                        .suffix(format!(" - {}", self.end_page as isize - 1))
+                        .speed(0.4)
+                        .range(0..=if len < spp {0} else {len-spp})
+                    );
+                    ui.label(format!(
+                        "/  {}",
+                        self.len()
+                    ));
+                });
             });
         });
+        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use super::group_item::GroupItem;
 /// will be much faster than [`GenIter`](super::GenIter) for large groups.
 pub struct Cyclic<T> {
     /// The generator for the group.
-    gen: T,
+    generator: T,
 
     /// The current item in the iterator.
     cur: Option<T>,
@@ -14,10 +14,10 @@ pub struct Cyclic<T> {
 
 impl<T: Clone> Cyclic<T> {
     /// Initializes a new cyclic group.
-    pub fn new(gen: T) -> Self {
+    pub fn new(generator: T) -> Self {
         Self {
-            cur: Some(gen.clone()),
-            gen,
+            cur: Some(generator.clone()),
+            generator,
         }
     }
 }
@@ -28,9 +28,9 @@ impl<T: Clone + GroupItem> Iterator for Cyclic<T> {
     fn next(&mut self) -> Option<Self::Item> {
         let cur = self.cur.as_mut()?;
         let res = cur.clone();
-        cur.mul_assign(&self.gen);
+        cur.mul_assign(&self.generator);
 
-        if cur.eq(&self.gen) {
+        if cur.eq(&self.generator) {
             self.cur = None;
         }
 
